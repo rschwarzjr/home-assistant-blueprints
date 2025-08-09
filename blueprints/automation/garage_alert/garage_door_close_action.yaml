@@ -1,18 +1,19 @@
 blueprint:
   name: Garage Door Close Button Handler
   description: >
-    Closes the matching garage door when you tap the "Close" action in the
-    mobile notification created by the Garage Door Open Alerts blueprint.
-    Map sensors to covers in the same order.
+    Closes the matching garage door when you tap the "Close" action in the mobile
+    notification created by the Garage Door Open Alerts blueprint. Map sensors to
+    covers in the same order.
   domain: automation
   input:
     garage_door_sensors:
       name: Garage Door Sensors
-      description: Same sensors used in the alerts blueprint (order matters)
+      description: Sensors used in the alerts blueprint (order matters)
       selector:
         entity:
           multiple: true
           domain: binary_sensor
+
     garage_door_covers:
       name: Matching Cover Entities
       description: Covers in the same order as sensors
@@ -28,8 +29,7 @@ trigger:
 condition:
   - condition: template
     value_template: >
-      {{ trigger.event.data.action is string and
-         trigger.event.data.action.startswith('CLOSE_') }}
+      {{ trigger.event.data.action is string and trigger.event.data.action.startswith('CLOSE_') }}
 
 variables:
   sensors: !input garage_door_sensors
@@ -47,4 +47,5 @@ action:
             target:
               entity_id: "{{ map[pressed] }}"
     default: []
+
 mode: parallel
