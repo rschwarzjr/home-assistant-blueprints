@@ -5,7 +5,7 @@ blueprint:
     plus reminders after configurable delays (Stage 1, Stage 2, Stage 3). Includes a Close
     button for phone notifications. Supports separate Quiet Hours for Phone and Alexa.
 
-    Placeholders supported in your titles/messages:
+    Placeholders you can use in titles/messages:
       - [[ door_name ]]  (recommended; won't be pre-rendered by HA)
       - {{ door_name }}  (also supported)
 
@@ -356,71 +356,77 @@ action:
   ####################################
   # Initial alert
   ####################################
-  - parallel:
-      # PHONE — call up to 3 services, each gated by its own choose block
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_1
-                data:
-                  title: "{{ title_initial }}"
-                  message: "{{ msg_initial }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_2
-                data:
-                  title: "{{ title_initial }}"
-                  message: "{{ msg_initial }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_3
-                data:
-                  title: "{{ title_initial }}"
-                  message: "{{ msg_initial }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
+  # PHONE (run if allowed and service present)
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc1 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_1
+                    data:
+                      title: "{{ title_initial }}"
+                      message: "{{ msg_initial }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc2 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_2
+                    data:
+                      title: "{{ title_initial }}"
+                      message: "{{ msg_initial }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc3 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_3
+                    data:
+                      title: "{{ title_initial }}"
+                      message: "{{ msg_initial }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+    default: []
 
-      # ALEXA
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_initial_alexa | bool) and (not alexa_quiet_now) }}"
-            sequence:
-              - service: notify.alexa_media
-                data:
-                  target: !input alexa_targets
-                  message: "{{ msg_initial }}"
-                  data:
-                    type: announce
-              - choose:
-                  - conditions:
-                      - condition: template
-                        value_template: "{{ alexa_q_initial | length > 0 }}"
-                    sequence:
-                      - service: notify.alexa_media
-                        data:
-                          target: !input alexa_targets
-                          message: "{{ alexa_q_initial | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-                          data:
-                            type: announce
+  # ALEXA
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_initial_alexa | bool) and (not alexa_quiet_now) }}"
+        sequence:
+          - service: notify.alexa_media
+            data:
+              target: !input alexa_targets
+              message: "{{ msg_initial }}"
+              data:
+                type: announce
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ alexa_q_initial | length > 0 }}"
+                sequence:
+                  - service: notify.alexa_media
+                    data:
+                      target: !input alexa_targets
+                      message: "{{ alexa_q_initial | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+                      data:
+                        type: announce
+    default: []
 
   ####################################
   # Stage 1 (first delay)
@@ -428,71 +434,78 @@ action:
   - delay: "{{ (first_delay | int) * 60 }}"
   - condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
-  - parallel:
-      # PHONE
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_1
-                data:
-                  title: "{{ title_first }}"
-                  message: "{{ msg_first }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_2
-                data:
-                  title: "{{ title_first }}"
-                  message: "{{ msg_first }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_3
-                data:
-                  title: "{{ title_first }}"
-                  message: "{{ msg_first }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
 
-      # ALEXA
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_first_alexa | bool) and (not alexa_quiet_now) }}"
-            sequence:
-              - service: notify.alexa_media
-                data:
-                  target: !input alexa_targets
-                  message: "{{ msg_first }}"
-                  data:
-                    type: announce
-              - choose:
-                  - conditions:
-                      - condition: template
-                        value_template: "{{ alexa_q_first | length > 0 }}"
-                    sequence:
-                      - service: notify.alexa_media
-                        data:
-                          target: !input alexa_targets
-                          message: "{{ alexa_q_first | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-                          data:
-                            type: announce
+  # PHONE
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc1 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_1
+                    data:
+                      title: "{{ title_first }}"
+                      message: "{{ msg_first }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc2 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_2
+                    data:
+                      title: "{{ title_first }}"
+                      message: "{{ msg_first }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc3 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_3
+                    data:
+                      title: "{{ title_first }}"
+                      message: "{{ msg_first }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+    default: []
+
+  # ALEXA
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_first_alexa | bool) and (not alexa_quiet_now) }}"
+        sequence:
+          - service: notify.alexa_media
+            data:
+              target: !input alexa_targets
+              message: "{{ msg_first }}"
+              data:
+                type: announce
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ alexa_q_first | length > 0 }}"
+                sequence:
+                  - service: notify.alexa_media
+                    data:
+                      target: !input alexa_targets
+                      message: "{{ alexa_q_first | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+                      data:
+                        type: announce
+    default: []
 
   ####################################
   # Stage 2 (second total delay)
@@ -502,71 +515,78 @@ action:
   - delay: "{{ remaining_minutes * 60 }}"
   - condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
-  - parallel:
-      # PHONE
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_1
-                data:
-                  title: "{{ title_second }}"
-                  message: "{{ msg_second }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_2
-                data:
-                  title: "{{ title_second }}"
-                  message: "{{ msg_second }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_3
-                data:
-                  title: "{{ title_second }}"
-                  message: "{{ msg_second }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
 
-      # ALEXA
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_second_alexa | bool) and (not alexa_quiet_now) }}"
-            sequence:
-              - service: notify.alexa_media
-                data:
-                  target: !input alexa_targets
-                  message: "{{ msg_second }}"
-                  data:
-                    type: announce
-              - choose:
-                  - conditions:
-                      - condition: template
-                        value_template: "{{ alexa_q_second | length > 0 }}"
-                    sequence:
-                      - service: notify.alexa_media
-                        data:
-                          target: !input alexa_targets
-                          message: "{{ alexa_q_second | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-                          data:
-                            type: announce
+  # PHONE
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc1 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_1
+                    data:
+                      title: "{{ title_second }}"
+                      message: "{{ msg_second }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc2 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_2
+                    data:
+                      title: "{{ title_second }}"
+                      message: "{{ msg_second }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc3 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_3
+                    data:
+                      title: "{{ title_second }}"
+                      message: "{{ msg_second }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+    default: []
+
+  # ALEXA
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_second_alexa | bool) and (not alexa_quiet_now) }}"
+        sequence:
+          - service: notify.alexa_media
+            data:
+              target: !input alexa_targets
+              message: "{{ msg_second }}"
+              data:
+                type: announce
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ alexa_q_second | length > 0 }}"
+                sequence:
+                  - service: notify.alexa_media
+                    data:
+                      target: !input alexa_targets
+                      message: "{{ alexa_q_second | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+                      data:
+                        type: announce
+    default: []
 
   ####################################
   # Stage 3 (third total delay)
@@ -576,69 +596,76 @@ action:
   - delay: "{{ remaining_minutes_2 * 60 }}"
   - condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
-  - parallel:
-      # PHONE
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_1
-                data:
-                  title: "{{ title_third }}"
-                  message: "{{ msg_third }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_2
-                data:
-                  title: "{{ title_third }}"
-                  message: "{{ msg_third }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
-            sequence:
-              - service: !input mobile_notify_service_3
-                data:
-                  title: "{{ title_third }}"
-                  message: "{{ msg_third }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "{{ btn_label }}"
 
-      # ALEXA
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ (send_third_alexa | bool) and (not alexa_quiet_now) }}"
-            sequence:
-              - service: notify.alexa_media
-                data:
-                  target: !input alexa_targets
-                  message: "{{ msg_third }}"
-                  data:
-                    type: announce
-              - choose:
-                  - conditions:
-                      - condition: template
-                        value_template: "{{ alexa_q_third | length > 0 }}"
-                    sequence:
-                      - service: notify.alexa_media
-                        data:
-                          target: !input alexa_targets
-                          message: "{{ alexa_q_third | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-                          data:
-                            type: announce
-                            
+  # PHONE
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc1 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_1
+                    data:
+                      title: "{{ title_third }}"
+                      message: "{{ msg_third }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc2 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_2
+                    data:
+                      title: "{{ title_third }}"
+                      message: "{{ msg_third }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ svc3 | length > 0 }}"
+                sequence:
+                  - service: !input mobile_notify_service_3
+                    data:
+                      title: "{{ title_third }}"
+                      message: "{{ msg_third }}"
+                      data:
+                        actions:
+                          - action: "CLOSE_{{ door_sensor }}"
+                            title: "{{ btn_label }}"
+    default: []
+
+  # ALEXA
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_third_alexa | bool) and (not alexa_quiet_now) }}"
+        sequence:
+          - service: notify.alexa_media
+            data:
+              target: !input alexa_targets
+              message: "{{ msg_third }}"
+              data:
+                type: announce
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ alexa_q_third | length > 0 }}"
+                sequence:
+                  - service: notify.alexa_media
+                    data:
+                      target: !input alexa_targets
+                      message: "{{ alexa_q_third | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+                      data:
+                        type: announce
+    default: []
+    
