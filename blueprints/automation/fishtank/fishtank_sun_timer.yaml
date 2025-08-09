@@ -1,11 +1,16 @@
+# ========================================
+# Fish Tank Sun Timer Blueprint
+# Version: 1.0.0
+# ========================================
+
 blueprint:
-  name: Fish Tank Sun Timer (per outlet)
+  name: Fish Tank Sun Timer (per outlet) v1.0.0
   description: >
     Turn an ESPHome outlet on at sunrise and off at sunset, with optional per-outlet
     weekday on-offset and an optional separate weekend on-offset. Create one automation
     per fish tank/outlet so each can have its own schedule and friendly name.
   domain: automation
-  source_url: https://example.com/fishtank_sun_timer
+  source_url: https://github.com/youruser/yourrepo/blob/main/blueprints/automation/fishtank_sun_timer.yaml
   input:
     outlet_entity:
       name: ESPHome Outlet (switch)
@@ -13,12 +18,14 @@ blueprint:
       selector:
         entity:
           domain: switch
+
     friendly_name:
       name: Friendly name (for this automation)
       description: Optional label to make this tank easy to recognize.
       default: ""
       selector:
         text: {}
+
     weekday_on_offset:
       name: Weekday ON offset from sunrise
       description: Positive delays ON, negative turns ON before sunrise. Default is 0.
@@ -26,12 +33,14 @@ blueprint:
       selector:
         duration:
           enable_day: false
+
     weekend_offset_enabled:
       name: Use a different weekend ON offset?
       description: If enabled, Saturdays and Sundays will use the offset below.
       default: false
       selector:
         boolean: {}
+
     weekend_on_offset:
       name: Weekend ON offset (dropdown)
       description: Applied only on Sat/Sun when enabled above.
@@ -64,6 +73,7 @@ blueprint:
             - "10:00:00"
             - "11:00:00"
             - "12:00:00"
+
     turn_off_at_sunset:
       name: Turn OFF at sunset
       description: Disable if you don't want an automatic OFF at sunset.
@@ -74,38 +84,45 @@ blueprint:
 mode: single
 max_exceeded: silent
 
+# ---------- Variables ----------
 variables:
+  v_outlet: !input outlet_entity
   v_friendly: !input friendly_name
+  v_weekend_enabled: !input weekend_offset_enabled
+  v_turn_off_at_sunset: !input turn_off_at_sunset
   v_name: >-
-    {% if (v_friendly | trim) != "" %}
-      {{ v_friendly }}
+    {% set _label = (v_friendly | trim) %}
+    {% if _label != "" %}
+      {{ _label }}
     {% else %}
-      {{ state_attr((inputs.outlet_entity or 'unknown'), 'friendly_name') or 'Fish Tank Light' }}
+      {{ state_attr(v_outlet, 'friendly_name') or 'Fish Tank Light' }}
     {% endif %}
 
+# ---------- Triggers ----------
 trigger:
-  # Weekday ON at sunrise with weekday offset
+  # Weekday/default ON at sunrise with weekday offset
   - id: weekday_on
     platform: sun
     event: sunrise
     offset: !input weekday_on_offset
 
-  # Weekend ON at sunrise with weekend offset (guarded by condition below)
+  # Weekend ON at sunrise with weekend offset (actual use gated by conditions)
   - id: weekend_on
     platform: sun
     event: sunrise
     offset: !input weekend_on_offset
 
-  # OFF at sunset (optional)
+  # OFF at sunset (optional via condition)
   - id: off_sunset
     platform: sun
     event: sunset
 
 condition: []
 
+# ---------- Actions ----------
 action:
   - choose:
-      # Weekend ON path (only if weekend + feature enabled)
+      # Weekend ON path (only if Sat/Sun AND weekend offset feature enabled)
       - conditions:
           - condition: trigger
             id: weekend_on
@@ -114,14 +131,14 @@ action:
               - sat
               - sun
           - condition: template
-            value_template: "{{ iif((inputs.weekend_offset_enabled | default(false)), true, false) }}"
+            value_template: "{{ v_weekend_enabled }}"
         sequence:
           - alias: "Turn ON (weekend schedule)"
             service: switch.turn_on
             target:
-              entity_id: !input outlet_entity
+              entity_id: "{{ v_outlet }}"
 
-      # Weekday ON path (Mon–Fri, OR weekend when weekend offset is disabled)
+      # Weekday ON path (Mon–Fri, OR Sat/Sun when weekend offset is disabled)
       - conditions:
           - condition: trigger
             id: weekday_on
@@ -141,26 +158,26 @@ action:
                       - sat
                       - sun
                   - condition: template
-                    value_template: "{{ not (inputs.weekend_offset_enabled | default(false)) }}"
+                    value_template: "{{ not v_weekend_enabled }}"
         sequence:
           - alias: "Turn ON (weekday/default schedule)"
             service: switch.turn_on
             target:
-              entity_id: !input outlet_entity
+              entity_id: "{{ v_outlet }}"
 
-      # OFF at sunset
+      # OFF at sunset (only if enabled)
       - conditions:
           - condition: trigger
             id: off_sunset
           - condition: template
-            value_template: "{{ iif((inputs.turn_off_at_sunset | default(true)), true, false) }}"
+            value_template: "{{ v_turn_off_at_sunset }}"
         sequence:
           - alias: "Turn OFF at sunset"
             service: switch.turn_off
             target:
-              entity_id: !input outlet_entity
+              entity_id: "{{ v_outlet }}"
 
-  # Optional: set a nice friendly alias on each run in trace/logs
+  # Nice-to-have: drop a friendly label into trace/logs
   - alias: "Set log/trace name"
     variables:
       _trace_name: "{{ v_name }}"
