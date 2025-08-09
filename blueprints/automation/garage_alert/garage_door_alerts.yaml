@@ -167,11 +167,11 @@ action:
       mobile_notify_service: !input mobile_notify_service
       alexa_entity: !input alexa_target
 
-  # Identify door & friendly name
+  # Identify door & names (now using the COVER'S friendly_name)
   - variables:
       door_sensor: "{{ trigger.entity_id }}"
-      door_name_real: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.to_state.name }}"
       door_cover: "{{ cover_map[trigger.entity_id] }}"
+      door_name_real: "{{ state_attr(door_cover, 'friendly_name') or door_cover }}"
 
   # Safe placeholder substitution:
   #  - Prefer [[ door_name ]] (won't be pre-rendered by HA)
