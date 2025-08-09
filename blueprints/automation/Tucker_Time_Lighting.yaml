@@ -1,9 +1,10 @@
 blueprint:
-  name: Tucker Time Lighting (Brightness Only v1.4)
+  name: Tucker Time Lighting (Brightness Only v1.5)
   description: >
-    Say "Alexa, it's Tucker time" to turn on up to 10 lights at specific brightness levels.
-    Triggered by an input_boolean helper exposed to Alexa, then auto-resets the helper.
-    Notes: Using direct entity_id in service data to ensure repeated triggers work reliably.
+    Say "Alexa, it's Tucker time" to set up to 10 lights.
+    If a light's brightness is 0, this blueprint will TURN THAT LIGHT OFF.
+    Otherwise it turns the light on at the specified brightness.
+    Triggered by an input_boolean exposed to Alexa, then auto-resets.
 
   domain: automation
   input:
@@ -36,7 +37,7 @@ blueprint:
         entity:
           domain: light
     light_1_brightness:
-      name: Light 1 Brightness (0–255)
+      name: Light 1 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -53,7 +54,7 @@ blueprint:
         entity:
           domain: light
     light_2_brightness:
-      name: Light 2 Brightness (0–255)
+      name: Light 2 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -70,7 +71,7 @@ blueprint:
         entity:
           domain: light
     light_3_brightness:
-      name: Light 3 Brightness (0–255)
+      name: Light 3 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -87,7 +88,7 @@ blueprint:
         entity:
           domain: light
     light_4_brightness:
-      name: Light 4 Brightness (0–255)
+      name: Light 4 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -104,7 +105,7 @@ blueprint:
         entity:
           domain: light
     light_5_brightness:
-      name: Light 5 Brightness (0–255)
+      name: Light 5 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -121,7 +122,7 @@ blueprint:
         entity:
           domain: light
     light_6_brightness:
-      name: Light 6 Brightness (0–255)
+      name: Light 6 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -138,7 +139,7 @@ blueprint:
         entity:
           domain: light
     light_7_brightness:
-      name: Light 7 Brightness (0–255)
+      name: Light 7 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -155,7 +156,7 @@ blueprint:
         entity:
           domain: light
     light_8_brightness:
-      name: Light 8 Brightness (0–255)
+      name: Light 8 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -172,7 +173,7 @@ blueprint:
         entity:
           domain: light
     light_9_brightness:
-      name: Light 9 Brightness (0–255)
+      name: Light 9 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -189,7 +190,7 @@ blueprint:
         entity:
           domain: light
     light_10_brightness:
-      name: Light 10 Brightness (0–255)
+      name: Light 10 Brightness (0–255, 0 = OFF)
       default: 200
       selector:
         number:
@@ -206,23 +207,41 @@ trigger:
     to: "on"
 
 variables:
+  tsec: !input transition_seconds
+
   l1: !input light_1
+  b1: !input light_1_brightness
   l2: !input light_2
+  b2: !input light_2_brightness
   l3: !input light_3
+  b3: !input light_3_brightness
   l4: !input light_4
+  b4: !input light_4_brightness
   l5: !input light_5
+  b5: !input light_5_brightness
   l6: !input light_6
+  b6: !input light_6_brightness
   l7: !input light_7
+  b7: !input light_7_brightness
   l8: !input light_8
+  b8: !input light_8_brightness
   l9: !input light_9
+  b9: !input light_9_brightness
   l10: !input light_10
+  b10: !input light_10_brightness
 
 action:
   # Light 1
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l1|length > 0 }}"
+            value_template: "{{ l1|length > 0 and (b1|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_1 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l1|length > 0 and (b1|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -234,7 +253,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l2|length > 0 }}"
+            value_template: "{{ l2|length > 0 and (b2|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_2 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l2|length > 0 and (b2|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -246,7 +271,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l3|length > 0 }}"
+            value_template: "{{ l3|length > 0 and (b3|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_3 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l3|length > 0 and (b3|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -258,7 +289,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l4|length > 0 }}"
+            value_template: "{{ l4|length > 0 and (b4|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_4 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l4|length > 0 and (b4|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -270,7 +307,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l5|length > 0 }}"
+            value_template: "{{ l5|length > 0 and (b5|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_5 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l5|length > 0 and (b5|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -282,7 +325,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l6|length > 0 }}"
+            value_template: "{{ l6|length > 0 and (b6|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_6 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l6|length > 0 and (b6|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -294,7 +343,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l7|length > 0 }}"
+            value_template: "{{ l7|length > 0 and (b7|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_7 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l7|length > 0 and (b7|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -306,7 +361,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l8|length > 0 }}"
+            value_template: "{{ l8|length > 0 and (b8|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_8 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l8|length > 0 and (b8|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -318,7 +379,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l9|length > 0 }}"
+            value_template: "{{ l9|length > 0 and (b9|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_9 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l9|length > 0 and (b9|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -330,7 +397,13 @@ action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l10|length > 0 }}"
+            value_template: "{{ l10|length > 0 and (b10|int) <= 0 }}"
+        sequence:
+          - service: light.turn_off
+            data: { entity_id: !input light_10 }
+      - conditions:
+          - condition: template
+            value_template: "{{ l10|length > 0 and (b10|int) > 0 }}"
         sequence:
           - service: light.turn_on
             data:
@@ -344,3 +417,4 @@ action:
   - service: input_boolean.turn_off
     target:
       entity_id: !input alexa_trigger
+      
