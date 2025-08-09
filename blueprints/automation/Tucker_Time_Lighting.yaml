@@ -1,0 +1,79 @@
+blueprint:
+  name: Tucker Time Lighting
+  description: >
+    Say "Alexa, it's Tucker time" to set specific lights to specific brightness levels.
+    This blueprint listens for an input_boolean helper (exposed to Alexa) turning ON,
+    sets your chosen lights, then resets the helper back to OFF for the next use.
+  domain: automation
+  input:
+    alexa_trigger:
+      name: Alexa Trigger (Helper)
+      description: >
+        An input_boolean helper exposed to Alexa that turns ON when you say:
+        "Alexa, it's Tucker time".
+      selector:
+        entity:
+          domain: input_boolean
+
+    light_1:
+      name: Light 1
+      description: First light to set
+      selector:
+        entity:
+          domain: light
+    light_1_brightness:
+      name: Light 1 Brightness (0-255)
+      description: Brightness for Light 1
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+
+    light_2:
+      name: Light 2
+      description: Second light to set
+      selector:
+        entity:
+          domain: light
+    light_2_brightness:
+      name: Light 2 Brightness (0-255)
+      description: Brightness for Light 2
+      default: 150
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    entity_id: !input alexa_trigger
+    to: "on"
+
+action:
+  - service: light.turn_on
+    target:
+      entity_id: !input light_1
+    data:
+      brightness: !input light_1_brightness
+
+  - service: light.turn_on
+    target:
+      entity_id: !input light_2
+    data:
+      brightness: !input light_2_brightness
+
+  # Small delay so we don't miss rapid re-triggers
+  - delay:
+      seconds: 1
+
+  # Reset the helper back to OFF for next time
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input alexa_trigger
+      
