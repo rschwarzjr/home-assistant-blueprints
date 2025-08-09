@@ -1,10 +1,10 @@
 blueprint:
-  name: Garage Door Open Alerts v1.14-stable (Quiet Hours, 3 Stages + Close Button)
+  name: Garage Door Open Alerts v1.15-debug (Quiet Hours, 3 Stages + Close Button)
   description: >
-    v1.14-stable — Switched to mobile_app *device* notifications (no custom notify service
-    strings) to avoid <domain>.<name> parser issues. Keeps Alexa announcements, Close button,
-    Quiet Hours per channel, custom names default "Garage Door", and 3 reminder stages.
-    Default Alexa question: "Do you want me to close it?"
+    v1.15-debug — Adds persistent notifications to show why branches are skipped:
+    device selected, quiet-hour flags, per-stage toggles, and built titles/messages.
+    Stable path: mobile_app device notifications + Alexa announcements. Custom names
+    default to "Garage Door". Alexa question default: "Do you want me to close it?"
 
     Placeholders you can use in titles/messages:
       - [[ door_name ]]  (recommended; won't be pre-rendered by HA)
@@ -203,7 +203,7 @@ mode: parallel
 max: 10
 
 action:
-  - alias: "v1.14: Load inputs & maps"
+  - alias: "v1.15: Load inputs & maps"
     variables:
       sensor_list: !input garage_door_sensors
       cover_list: !input garage_door_covers
@@ -247,7 +247,9 @@ action:
       alexa_q_second:  !input alexa_question_second
       alexa_q_third:   !input alexa_question_third
 
-  - alias: "v1.14: Determine door & name"
+      mobile_device_id: !input mobile_device
+
+  - alias: "v1.15: Determine door & name"
     variables:
       door_sensor: "{{ trigger.entity_id }}"
       door_cover:  "{{ cover_map[trigger.entity_id] }}"
@@ -258,7 +260,7 @@ action:
         ]) }}
       door_name_real: "{{ name_map.get(door_sensor) or door_sensor }}"
 
-  - alias: "v1.14: Build titles/messages"
+  - alias: "v1.15: Build titles/messages"
     variables:
       title_initial: "{{ title_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
       msg_initial:   "{{ (msg_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real)) or ('Door opened — ' ~ door_name_real) }}"
@@ -270,7 +272,7 @@ action:
       msg_third:     "{{ msg_third_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
       btn_label:     "{{ close_btn_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
 
-  - alias: "v1.14: Quiet-hour helpers"
+  - alias: "v1.15: Quiet-hour helpers"
     variables:
       _now_sec: "{{ now().hour*3600 + now().minute*60 + now().second }}"
       _p_start: "{{ strptime(phone_quiet_start, '%H:%M:%S').hour*3600 + strptime(phone_quiet_start, '%H:%M:%S').minute*60 + strptime(phone_quiet_start, '%H:%M:%S').second }}"
@@ -296,14 +298,29 @@ action:
           {% endif %}
         {% endif %}
 
+  - alias: "v1.15: DEBUG — inputs snapshot"
+    service: persistent_notification.create
+    data:
+      title: "Garage Alerts v1.15-debug: Inputs"
+      message: >
+        Trigger: {{ door_sensor }}
+        | PhoneQuietNow={{ phone_quiet_now }}
+        | AlexaQuietNow={{ alexa_quiet_now }}
+        | send_initial_phone={{ send_initial_phone }}
+        | send_initial_alexa={{ send_initial_alexa }}
+        | mobile_device_id={{ mobile_device_id }}
+        | alexa_targets={{ alexa_targets }}
+        | title="{{ title_initial }}"
+        | msg="{{ msg_initial }}"
+
   ####################################
   # Initial alert
   ####################################
-  - alias: "v1.14: Initial → Phone"
+  - alias: "v1.15: Initial → Phone"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) }}"
+            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (mobile_device_id | length > 0) }}"
         sequence:
           - device_id: !input mobile_device
             domain: mobile_app
@@ -314,13 +331,20 @@ action:
               actions:
                 - action: "CLOSE_{{ door_sensor }}"
                   title: "{{ btn_label }}"
-    default: []
+      # if skipped, tell us why
+    default:
+      - service: persistent_notification.create
+        data:
+          title: "Garage Alerts v1.15-debug: Initial PHONE skipped"
+          message: >
+            send_initial_phone={{ send_initial_phone }}, phone_quiet_now={{ phone_quiet_now }},
+            device_set={{ mobile_device_id | length > 0 }}
 
-  - alias: "v1.14: Initial → Alexa"
+  - alias: "v1.15: Initial → Alexa"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_initial_alexa | bool) and (not alexa_quiet_now) }}"
+            value_template: "{{ (send_initial_alexa | bool) and (not alexa_quiet_now) and (alexa_targets | count > 0) }}"
         sequence:
           - service: notify.alexa_media
             data:
@@ -339,22 +363,28 @@ action:
                       message: "{{ alexa_q_initial | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
                       data:
                         type: announce
-    default: []
+    default:
+      - service: persistent_notification.create
+        data:
+          title: "Garage Alerts v1.15-debug: Initial ALEXA skipped"
+          message: >
+            send_initial_alexa={{ send_initial_alexa }}, alexa_quiet_now={{ alexa_quiet_now }},
+            alexa_targets_count={{ alexa_targets | count }}
 
   ####################################
   # Stage 1
   ####################################
-  - alias: "v1.14: Wait Stage 1"
+  - alias: "v1.15: Wait Stage 1"
     delay: "{{ (first_delay | int) * 60 }}"
-  - alias: "v1.14: Still open (Stage 1)?"
+  - alias: "v1.15: Still open (Stage 1)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  - alias: "v1.14: Stage 1 → Phone"
+  - alias: "v1.15: Stage 1 → Phone"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) }}"
+            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (mobile_device_id | length > 0) }}"
         sequence:
           - device_id: !input mobile_device
             domain: mobile_app
@@ -365,13 +395,19 @@ action:
               actions:
                 - action: "CLOSE_{{ door_sensor }}"
                   title: "{{ btn_label }}"
-    default: []
+    default:
+      - service: persistent_notification.create
+        data:
+          title: "Garage Alerts v1.15-debug: Stage1 PHONE skipped"
+          message: >
+            send_first_phone={{ send_first_phone }}, phone_quiet_now={{ phone_quiet_now }},
+            device_set={{ mobile_device_id | length > 0 }}
 
-  - alias: "v1.14: Stage 1 → Alexa"
+  - alias: "v1.15: Stage 1 → Alexa"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_first_alexa | bool) and (not alexa_quiet_now) }}"
+            value_template: "{{ (send_first_alexa | bool) and (not alexa_quiet_now) and (alexa_targets | count > 0) }}"
         sequence:
           - service: notify.alexa_media
             data:
@@ -390,25 +426,31 @@ action:
                       message: "{{ alexa_q_first | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
                       data:
                         type: announce
-    default: []
+    default:
+      - service: persistent_notification.create
+        data:
+          title: "Garage Alerts v1.15-debug: Stage1 ALEXA skipped"
+          message: >
+            send_first_alexa={{ send_first_alexa }}, alexa_quiet_now={{ alexa_quiet_now }},
+            alexa_targets_count={{ alexa_targets | count }}
 
   ####################################
   # Stage 2
   ####################################
-  - alias: "v1.14: Compute remaining to Stage 2"
+  - alias: "v1.15: Compute remaining to Stage 2"
     variables:
       remaining_minutes: "{{ max((second_delay | int) - (first_delay | int), 0) }}"
-  - alias: "v1.14: Wait Stage 2"
+  - alias: "v1.15: Wait Stage 2"
     delay: "{{ remaining_minutes * 60 }}"
-  - alias: "v1.14: Still open (Stage 2)?"
+  - alias: "v1.15: Still open (Stage 2)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  - alias: "v1.14: Stage 2 → Phone"
+  - alias: "v1.15: Stage 2 → Phone"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) }}"
+            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (mobile_device_id | length > 0) }}"
         sequence:
           - device_id: !input mobile_device
             domain: mobile_app
@@ -419,13 +461,19 @@ action:
               actions:
                 - action: "CLOSE_{{ door_sensor }}"
                   title: "{{ btn_label }}"
-    default: []
+    default:
+      - service: persistent_notification.create
+        data:
+          title: "Garage Alerts v1.15-debug: Stage2 PHONE skipped"
+          message: >
+            send_second_phone={{ send_second_phone }}, phone_quiet_now={{ phone_quiet_now }},
+            device_set={{ mobile_device_id | length > 0 }}
 
-  - alias: "v1.14: Stage 2 → Alexa"
+  - alias: "v1.15: Stage 2 → Alexa"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_second_alexa | bool) and (not alexa_quiet_now) }}"
+            value_template: "{{ (send_second_alexa | bool) and (not alexa_quiet_now) and (alexa_targets | count > 0) }}"
         sequence:
           - service: notify.alexa_media
             data:
@@ -444,25 +492,31 @@ action:
                       message: "{{ alexa_q_second | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
                       data:
                         type: announce
-    default: []
+    default:
+      - service: persistent_notification.create
+        data:
+          title: "Garage Alerts v1.15-debug: Stage2 ALEXA skipped"
+          message: >
+            send_second_alexa={{ send_second_alexa }}, alexa_quiet_now={{ alexa_quiet_now }},
+            alexa_targets_count={{ alexa_targets | count }}
 
   ####################################
   # Stage 3
   ####################################
-  - alias: "v1.14: Compute remaining to Stage 3"
+  - alias: "v1.15: Compute remaining to Stage 3"
     variables:
       remaining_minutes_2: "{{ max((third_delay | int) - (second_delay | int), 0) }}"
-  - alias: "v1.14: Wait Stage 3"
+  - alias: "v1.15: Wait Stage 3"
     delay: "{{ remaining_minutes_2 * 60 }}"
-  - alias: "v1.14: Still open (Stage 3)?"
+  - alias: "v1.15: Still open (Stage 3)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  - alias: "v1.14: Stage 3 → Phone"
+  - alias: "v1.15: Stage 3 → Phone"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) }}"
+            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (mobile_device_id | length > 0) }}"
         sequence:
           - device_id: !input mobile_device
             domain: mobile_app
@@ -473,13 +527,19 @@ action:
               actions:
                 - action: "CLOSE_{{ door_sensor }}"
                   title: "{{ btn_label }}"
-    default: []
+    default:
+      - service: persistent_notification.create
+        data:
+          title: "Garage Alerts v1.15-debug: Stage3 PHONE skipped"
+          message: >
+            send_third_phone={{ send_third_phone }}, phone_quiet_now={{ phone_quiet_now }},
+            device_set={{ mobile_device_id | length > 0 }}
 
-  - alias: "v1.14: Stage 3 → Alexa"
+  - alias: "v1.15: Stage 3 → Alexa"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_third_alexa | bool) and (not alexa_quiet_now) }}"
+            value_template: "{{ (send_third_alexa | bool) and (not alexa_quiet_now) and (alexa_targets | count > 0) }}"
         sequence:
           - service: notify.alexa_media
             data:
@@ -498,5 +558,11 @@ action:
                       message: "{{ alexa_q_third | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
                       data:
                         type: announce
-    default: []
-    
+    default:
+      - service: persistent_notification.create
+        data:
+          title: "Garage Alerts v1.15-debug: Stage3 ALEXA skipped"
+          message: >
+            send_third_alexa={{ send_third_alexa }}, alexa_quiet_now={{ alexa_quiet_now }},
+            alexa_targets_count={{ alexa_targets | count }}
+            
