@@ -36,7 +36,7 @@ blueprint:
         entity:
           domain: media_player
 
-    # Custom titles & messages (templates allowed: {{ door_name }}, {{ first_delay }}, {{ second_delay }})
+    # Custom titles & messages (you can include {{ door_name }}, {{ first_delay }}, {{ second_delay }})
     title_initial:
       name: Initial alert title
       default: "🚪 Garage Alert"
@@ -137,19 +137,20 @@ variables:
   first_delay: !input first_delay_minutes
   second_delay: !input second_delay_minutes
 
-  send_initial_phone: !input send_initial_phone
-  send_initial_alexa: !input send_initial_alexa
-  send_first_phone: !input send_first_phone
-  send_first_alexa: !input send_first_alexa
-  send_second_phone: !input send_second_phone
-  send_second_alexa: !input send_second_alexa
+  # Cast toggles to real booleans to avoid 'truthy' string issues
+  send_initial_phone: "{{ ( !input send_initial_phone ) | bool }}"
+  send_initial_alexa: "{{ ( !input send_initial_alexa ) | bool }}"
+  send_first_phone:  "{{ ( !input send_first_phone  ) | bool }}"
+  send_first_alexa:  "{{ ( !input send_first_alexa  ) | bool }}"
+  send_second_phone: "{{ ( !input send_second_phone ) | bool }}"
+  send_second_alexa: "{{ ( !input send_second_alexa ) | bool }}"
 
   title_initial: !input title_initial
-  msg_initial: !input msg_initial
-  title_first: !input title_first
-  msg_first: !input msg_first
-  title_second: !input title_second
-  msg_second: !input msg_second
+  msg_initial:   !input msg_initial
+  title_first:   !input title_first
+  msg_first:     !input msg_first
+  title_second:  !input title_second
+  msg_second:    !input msg_second
   close_button_label: !input close_button_label
 
 trigger:
@@ -162,38 +163,49 @@ mode: parallel
 max: 10
 
 action:
+  # Identify which door triggered and compute a friendly name
   - variables:
       door_sensor: "{{ trigger.entity_id }}"
-      door_name: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.to_state.name }}"
+      door_name_real: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.to_state.name }}"
       door_cover: "{{ cover_map[trigger.entity_id] }}"
+
+  # Build finalized titles/messages by replacing {{ door_name }} with the real name
+  - variables:
+      t_initial: "{{ (title_initial | default('🚪 Garage Alert')) | replace('{{ door_name }}', door_name_real) }}"
+      m_initial: "{{ (msg_initial   | default('Hey! {{ door_name }} was just opened.')) | replace('{{ door_name }}', door_name_real) }}"
+      t_first:   "{{ (title_first  | default('⏱️ Garage Reminder')) | replace('{{ door_name }}', door_name_real) }}"
+      m_first:   "{{ (msg_first    | default('Heads up! {{ door_name }} has been open for {{ first_delay }} minutes.')) | replace('{{ door_name }}', door_name_real) }}"
+      t_second:  "{{ (title_second | default('⌛ Garage Still Open')) | replace('{{ door_name }}', door_name_real) }}"
+      m_second:  "{{ (msg_second   | default('FYI — {{ door_name }} has been open for {{ second_delay }} minutes.')) | replace('{{ door_name }}', door_name_real) }}"
+      btn_label: "{{ (close_button_label | default('Close {{ door_name }}')) | replace('{{ door_name }}', door_name_real) }}"
 
   # Initial alert
   - parallel:
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ send_initial_phone }}"
+                value_template: "{{ send_initial_phone | bool }}"
             sequence:
               - device_id: !input mobile_device
                 domain: mobile_app
                 type: notify
-                title: "{{ title_initial }}"
-                message: "{{ msg_initial }}"
+                title: "{{ t_initial }}"
+                message: "{{ m_initial }}"
                 data:
                   actions:
                     - action: "CLOSE_{{ door_sensor }}"
-                      title: "{{ close_button_label }}"
+                      title: "{{ btn_label }}"
         default: []
 
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ send_initial_alexa }}"
+                value_template: "{{ send_initial_alexa | bool }}"
             sequence:
               - service: notify.alexa_media
                 data:
                   target: !input alexa_target
-                  message: "{{ msg_initial }}"
+                  message: "{{ m_initial }}"
                   data:
                     type: announce
         default: []
@@ -206,28 +218,28 @@ action:
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ send_first_phone }}"
+                value_template: "{{ send_first_phone | bool }}"
             sequence:
               - device_id: !input mobile_device
                 domain: mobile_app
                 type: notify
-                title: "{{ title_first }}"
-                message: "{{ msg_first }}"
+                title: "{{ t_first }}"
+                message: "{{ m_first }}"
                 data:
                   actions:
                     - action: "CLOSE_{{ door_sensor }}"
-                      title: "{{ close_button_label }}"
+                      title: "{{ btn_label }}"
         default: []
 
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ send_first_alexa }}"
+                value_template: "{{ send_first_alexa | bool }}"
             sequence:
               - service: notify.alexa_media
                 data:
                   target: !input alexa_target
-                  message: "{{ msg_first }}"
+                  message: "{{ m_first }}"
                   data:
                     type: announce
         default: []
@@ -242,28 +254,28 @@ action:
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ send_second_phone }}"
+                value_template: "{{ send_second_phone | bool }}"
             sequence:
               - device_id: !input mobile_device
                 domain: mobile_app
                 type: notify
-                title: "{{ title_second }}"
-                message: "{{ msg_second }}"
+                title: "{{ t_second }}"
+                message: "{{ m_second }}"
                 data:
                   actions:
                     - action: "CLOSE_{{ door_sensor }}"
-                      title: "{{ close_button_label }}"
+                      title: "{{ btn_label }}"
         default: []
 
       - choose:
           - conditions:
               - condition: template
-                value_template: "{{ send_second_alexa }}"
+                value_template: "{{ send_second_alexa | bool }}"
             sequence:
               - service: notify.alexa_media
                 data:
                   target: !input alexa_target
-                  message: "{{ msg_second }}"
+                  message: "{{ m_second }}"
                   data:
                     type: announce
         default: []
