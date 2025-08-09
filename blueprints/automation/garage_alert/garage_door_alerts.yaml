@@ -1,0 +1,193 @@
+blueprint:
+  name: Garage Door Open Alerts (Custom Text + Per-Incident Channels)
+  description: >
+    Friendly notifications and Alexa announcements when a garage door opens,
+    with editable text for each alert stage and per-stage delivery options.
+  domain: automation
+  input:
+    garage_door_sensors:
+      name: Garage Door Sensors
+      description: Binary sensors for open/close state (on = open)
+      selector:
+        entity:
+          multiple: true
+          domain: binary_sensor
+    garage_door_covers:
+      name: Matching Cover Entities
+      description: Covers that control each door, in the same order as the sensors
+      selector:
+        entity:
+          multiple: true
+          domain: cover
+
+    mobile_device:
+      name: Mobile device to notify
+      description: Pick your phone (mobile_app integration)
+      selector:
+        device:
+          integration: mobile_app
+
+    alexa_target:
+      name: Alexa Device
+      description: Alexa media_player entity to announce on
+      selector:
+        entity:
+          domain: media_player
+
+    # Editable messages
+    msg_initial:
+      name: Initial Alert Message
+      default: "Hey! {{ door_name }} was just opened."
+      selector:
+        text:
+    msg_first:
+      name: First Reminder Message
+      default: "Heads up! {{ door_name }} has been open for {{ first_delay }} minutes."
+      selector:
+        text:
+    msg_second:
+      name: Second Reminder Message
+      default: "Alert! {{ door_name }} has now been open for {{ second_delay }} minutes."
+      selector:
+        text:
+
+    # Per-incident delivery options
+    send_initial_phone:
+      name: Initial alert → Phone
+      default: true
+      selector:
+        boolean:
+    send_initial_alexa:
+      name: Initial alert → Alexa
+      default: true
+      selector:
+        boolean:
+    send_first_phone:
+      name: First reminder → Phone
+      default: true
+      selector:
+        boolean:
+    send_first_alexa:
+      name: First reminder → Alexa
+      default: true
+      selector:
+        boolean:
+    send_second_phone:
+      name: Second reminder → Phone
+      default: true
+      selector:
+        boolean:
+    send_second_alexa:
+      name: Second reminder → Alexa
+      default: true
+      selector:
+        boolean:
+
+    # Timing controls
+    first_delay_minutes:
+      name: First reminder after (minutes)
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 120
+          unit_of_measurement: minutes
+    second_delay_minutes:
+      name: Second reminder after (minutes)
+      description: Total time since open for the second reminder
+      default: 60
+      selector:
+        number:
+          min: 2
+          max: 240
+          unit_of_measurement: minutes
+
+mode: parallel
+
+trigger:
+  - platform: state
+    entity_id: !input garage_door_sensors
+    from: 'off'
+    to: 'on'
+
+variables:
+  sensor_list: !input garage_door_sensors
+  cover_list: !input garage_door_covers
+  cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
+  first_delay: !input first_delay_minutes
+  second_delay: !input second_delay_minutes
+
+action:
+  - variables:
+      door_sensor: "{{ trigger.entity_id }}"
+      door_name: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.to_state.name }}"
+
+  # Initial alert
+  - choose:
+      - conditions: "{{ send_initial_phone and is_state(door_sensor, 'on') }}"
+        sequence:
+          - device_id: !input mobile_device
+            domain: mobile_app
+            type: notify
+            title: "🚪 Garage Alert"
+            message: "{{ msg_initial }}"
+            data:
+              actions:
+                - action: "CLOSE_{{ door_sensor }}"
+                  title: "Close {{ door_name }}"
+      - conditions: "{{ send_initial_alexa and is_state(door_sensor, 'on') }}"
+        sequence:
+          - service: notify.alexa_media
+            data:
+              target: !input alexa_target
+              message: "{{ msg_initial }}"
+              data:
+                type: announce
+
+  # First reminder
+  - delay: "{{ (first_delay | int) * 60 }}"
+  - choose:
+      - conditions: "{{ send_first_phone and is_state(door_sensor, 'on') }}"
+        sequence:
+          - device_id: !input mobile_device
+            domain: mobile_app
+            type: notify
+            title: "⏱️ Garage Reminder"
+            message: "{{ msg_first }}"
+            data:
+              actions:
+                - action: "CLOSE_{{ door_sensor }}"
+                  title: "Close {{ door_name }}"
+      - conditions: "{{ send_first_alexa and is_state(door_sensor, 'on') }}"
+        sequence:
+          - service: notify.alexa_media
+            data:
+              target: !input alexa_target
+              message: "{{ msg_first }}"
+              data:
+                type: announce
+
+  # Second reminder
+  - variables:
+      remaining_minutes: "{{ max((second_delay | int) - (first_delay | int), 0) }}"
+  - delay: "{{ remaining_minutes * 60 }}"
+  - choose:
+      - conditions: "{{ send_second_phone and is_state(door_sensor, 'on') }}"
+        sequence:
+          - device_id: !input mobile_device
+            domain: mobile_app
+            type: notify
+            title: "⌛ Garage Still Open"
+            message: "{{ msg_second }}"
+            data:
+              actions:
+                - action: "CLOSE_{{ door_sensor }}"
+                  title: "Close {{ door_name }}"
+      - conditions: "{{ send_second_alexa and is_state(door_sensor, 'on') }}"
+        sequence:
+          - service: notify.alexa_media
+            data:
+              target: !input alexa_target
+              message: "{{ msg_second }}"
+              data:
+                type: announce
