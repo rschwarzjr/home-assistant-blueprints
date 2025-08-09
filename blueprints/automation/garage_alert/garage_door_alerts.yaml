@@ -362,51 +362,44 @@ action:
   ####################################
   # Initial alert
   ####################################
-  # PHONE — explicit calls, each guarded
+  # PHONE — single flat choose with three options
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) }}"
+            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
         sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc1 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_1
-                    data:
-                      title: "{{ title_initial }}"
-                      message: "{{ msg_initial }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc2 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_2
-                    data:
-                      title: "{{ title_initial }}"
-                      message: "{{ msg_initial }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc3 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_3
-                    data:
-                      title: "{{ title_initial }}"
-                      message: "{{ msg_initial }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
+          - service: !input mobile_notify_service_1
+            data:
+              title: "{{ title_initial }}"
+              message: "{{ msg_initial }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
+        sequence:
+          - service: !input mobile_notify_service_2
+            data:
+              title: "{{ title_initial }}"
+              message: "{{ msg_initial }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
+        sequence:
+          - service: !input mobile_notify_service_3
+            data:
+              title: "{{ title_initial }}"
+              message: "{{ msg_initial }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
     default: []
 
   # ALEXA
@@ -441,51 +434,44 @@ action:
   - condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  # PHONE
+  # PHONE — flat choose
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) }}"
+            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
         sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc1 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_1
-                    data:
-                      title: "{{ title_first }}"
-                      message: "{{ msg_first }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc2 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_2
-                    data:
-                      title: "{{ title_first }}"
-                      message: "{{ msg_first }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc3 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_3
-                    data:
-                      title: "{{ title_first }}"
-                      message: "{{ msg_first }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
+          - service: !input mobile_notify_service_1
+            data:
+              title: "{{ title_first }}"
+              message: "{{ msg_first }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
+        sequence:
+          - service: !input mobile_notify_service_2
+            data:
+              title: "{{ title_first }}"
+              message: "{{ msg_first }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
+        sequence:
+          - service: !input mobile_notify_service_3
+            data:
+              title: "{{ title_first }}"
+              message: "{{ msg_first }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
     default: []
 
   # ALEXA
@@ -522,51 +508,44 @@ action:
   - condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  # PHONE
+  # PHONE — flat choose
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) }}"
+            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
         sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc1 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_1
-                    data:
-                      title: "{{ title_second }}"
-                      message: "{{ msg_second }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc2 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_2
-                    data:
-                      title: "{{ title_second }}"
-                      message: "{{ msg_second }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc3 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_3
-                    data:
-                      title: "{{ title_second }}"
-                      message: "{{ msg_second }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
+          - service: !input mobile_notify_service_1
+            data:
+              title: "{{ title_second }}"
+              message: "{{ msg_second }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
+        sequence:
+          - service: !input mobile_notify_service_2
+            data:
+              title: "{{ title_second }}"
+              message: "{{ msg_second }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
+        sequence:
+          - service: !input mobile_notify_service_3
+            data:
+              title: "{{ title_second }}"
+              message: "{{ msg_second }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
     default: []
 
   # ALEXA
@@ -603,51 +582,44 @@ action:
   - condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  # PHONE
+  # PHONE — flat choose
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) }}"
+            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
         sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc1 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_1
-                    data:
-                      title: "{{ title_third }}"
-                      message: "{{ msg_third }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc2 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_2
-                    data:
-                      title: "{{ title_third }}"
-                      message: "{{ msg_third }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ svc3 | length > 0 }}"
-                sequence:
-                  - service: !input mobile_notify_service_3
-                    data:
-                      title: "{{ title_third }}"
-                      message: "{{ msg_third }}"
-                      data:
-                        actions:
-                          - action: "CLOSE_{{ door_sensor }}"
-                            title: "{{ btn_label }}"
+          - service: !input mobile_notify_service_1
+            data:
+              title: "{{ title_third }}"
+              message: "{{ msg_third }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
+        sequence:
+          - service: !input mobile_notify_service_2
+            data:
+              title: "{{ title_third }}"
+              message: "{{ msg_third }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
+        sequence:
+          - service: !input mobile_notify_service_3
+            data:
+              title: "{{ title_third }}"
+              message: "{{ msg_third }}"
+              data:
+                actions:
+                  - action: "CLOSE_{{ door_sensor }}"
+                    title: "{{ btn_label }}"
     default: []
 
   # ALEXA
