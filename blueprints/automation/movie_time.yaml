@@ -1,0 +1,160 @@
+blueprint:
+  name: Movie Time v1.0 — TV Lighting Preset
+  description: >
+    Sets lights for watching TV: two lights to specific brightness levels and
+    turns off a third light. Can be run manually or triggered by an Alexa
+    routine via a helper switch. After running from the helper switch, the
+    switch is reset to off so it’s ready for next time.
+
+    SETUP (Alexa optional):
+      1) Create a Helper (Settings → Devices & services → Helpers → Create Helper → Toggle).
+         Name it something like "Movie Time Trigger".
+      2) In this blueprint's inputs, select that helper under "Alexa Trigger Switch".
+      3) In the Alexa app, create a Routine:
+           • When you say: “Alexa, it’s movie time”
+           • Action: Turn ON the Home Assistant helper switch you created.
+      4) Expose that helper to Alexa (Nabu Casa or Alexa integration) if needed.
+      5) You can also run the automation manually in Home Assistant anytime (no Alexa required).
+
+    NOTES:
+      • Brightness is set using brightness_pct (0–100). 0 is not allowed here; use the
+        "Light to turn OFF" input for anything you want off.
+      • The "Light to turn OFF" can be a light or a group.
+      • Optional transition lets lights fade to the target level.
+
+  domain: automation
+  source_url: https://example.com/ha-blueprints/movie-time-v1-0  # optional placeholder
+  homeassistant:
+    min_version: 2023.8.0
+
+  input:
+    alexa_trigger_switch:
+      name: Alexa Trigger Switch (optional)
+      description: >
+        Toggle helper that, when turned ON (e.g., by an Alexa routine), will run
+        Movie Time and then be turned back OFF automatically.
+      selector:
+        entity:
+          domain: input_boolean
+      default: ""
+
+    light_one:
+      name: Light #1 (to set brightness)
+      selector:
+        entity:
+          domain: light
+
+    light_one_brightness:
+      name: Light #1 Brightness (%)
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 100
+          mode: slider
+          step: 1
+          unit_of_measurement: "%"
+
+    light_two:
+      name: Light #2 (to set brightness)
+      selector:
+        entity:
+          domain: light
+
+    light_two_brightness:
+      name: Light #2 Brightness (%)
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 100
+          mode: slider
+          step: 1
+          unit_of_measurement: "%"
+
+    light_to_turn_off:
+      name: Light to turn OFF
+      description: >
+        The light (or light group) to switch OFF for movie time.
+      selector:
+        entity:
+          domain: light
+
+    transition_seconds:
+      name: Transition (seconds, optional)
+      description: Fade duration when setting brightness (0 = instant).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 1
+          mode: slider
+          unit_of_measurement: s
+
+mode: single
+max_exceeded: silent
+
+variables:
+  v_trigger_switch: !input alexa_trigger_switch
+  v_has_trigger_switch: "{{ v_trigger_switch != '' }}"
+  v_transition: !input transition_seconds
+  v_light_one: !input light_one
+  v_light_one_pct: !input light_one_brightness
+  v_light_two: !input light_two
+  v_light_two_pct: !input light_two_brightness
+  v_off_light: !input light_to_turn_off
+
+trigger:
+  - platform: state
+    id: helper_on
+    entity_id: !input alexa_trigger_switch
+    from: "off"
+    to: "on"
+    enabled: true
+  # Manual run support — this fires when you click "Run" in the UI
+  - platform: event
+    id: manual_run
+    event_type: automation.trigger
+    event_data:
+      entity_id: "{{ this.entity_id }}"
+
+condition: []
+
+action:
+  - alias: "Guard: if no helper is configured and this is a helper trigger, stop"
+    if:
+      - condition: template
+        value_template: "{{ trigger.id == 'helper_on' and not v_has_trigger_switch }}"
+    then:
+      - stop: "No Alexa trigger switch configured; run manually or set the helper."
+
+  - alias: "Turn OFF the third light"
+    service: light.turn_off
+    target:
+      entity_id: "{{ v_off_light }}"
+
+  - alias: "Set Light #1 brightness"
+    service: light.turn_on
+    data:
+      brightness_pct: "{{ v_light_one_pct }}"
+      transition: "{{ v_transition }}"
+    target:
+      entity_id: "{{ v_light_one }}"
+
+  - alias: "Set Light #2 brightness"
+    service: light.turn_on
+    data:
+      brightness_pct: "{{ v_light_two_pct }}"
+      transition: "{{ v_transition }}"
+    target:
+      entity_id: "{{ v_light_two }}"
+
+  - alias: "Reset helper switch to OFF (if used)"
+    if:
+      - condition: template
+        value_template: "{{ v_has_trigger_switch and trigger.id == 'helper_on' }}"
+    then:
+      - service: input_boolean.turn_off
+        target:
+          entity_id: "{{ v_trigger_switch }}"
