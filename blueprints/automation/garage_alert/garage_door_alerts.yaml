@@ -13,6 +13,7 @@ blueprint:
         entity:
           multiple: true
           domain: binary_sensor
+
     garage_door_covers:
       name: Matching Cover Entities
       description: Covers for each sensor, in the same order
@@ -20,65 +21,94 @@ blueprint:
         entity:
           multiple: true
           domain: cover
-    mobile_notify_service:
-      name: Mobile Notification Service
-      description: The notify service for your phone (e.g., notify.mobile_app_yourphone)
+
+    mobile_device:
+      name: Phone to notify
+      description: Device from the mobile_app integration
       selector:
-        text:
+        device:
+          integration: mobile_app
+
     alexa_target:
       name: Alexa Device
-      description: Alexa media_player entity for announcements
+      description: Alexa media_player entity for announcements (e.g., media_player.kitchen)
       selector:
         entity:
           domain: media_player
-    # Custom messages
+
+    # Custom titles & messages (templates allowed: {{ door_name }}, {{ first_delay }}, {{ second_delay }})
+    title_initial:
+      name: Initial alert title
+      default: "🚪 Garage Alert"
+      selector:
+        text:
     msg_initial:
-      name: Initial Alert Message
+      name: Initial alert message
       default: "Hey! {{ door_name }} was just opened."
       selector:
         text:
+
+    title_first:
+      name: First reminder title
+      default: "⏱️ Garage Reminder"
+      selector:
+        text:
     msg_first:
-      name: First Reminder Message
+      name: First reminder message
       default: "Heads up! {{ door_name }} has been open for {{ first_delay }} minutes."
       selector:
         text:
-    msg_second:
-      name: Second Reminder Message
-      default: "Alert! {{ door_name }} has now been open for {{ second_delay }} minutes."
+
+    title_second:
+      name: Second reminder title
+      default: "⌛ Garage Still Open"
       selector:
         text:
-    # Per-stage delivery toggles
+    msg_second:
+      name: Second reminder message
+      default: "FYI — {{ door_name }} has been open for {{ second_delay }} minutes."
+      selector:
+        text:
+
+    close_button_label:
+      name: Button label
+      default: "Close {{ door_name }}"
+      selector:
+        text:
+
+    # Per-incident channel toggles
     send_initial_phone:
-      name: Send Initial to Phone
+      name: Initial alert → Phone
       default: true
       selector:
         boolean:
     send_initial_alexa:
-      name: Send Initial to Alexa
+      name: Initial alert → Alexa
       default: true
       selector:
         boolean:
     send_first_phone:
-      name: Send First Reminder to Phone
+      name: First reminder → Phone
       default: true
       selector:
         boolean:
     send_first_alexa:
-      name: Send First Reminder to Alexa
+      name: First reminder → Alexa
       default: true
       selector:
         boolean:
     send_second_phone:
-      name: Send Second Reminder to Phone
+      name: Second reminder → Phone
       default: true
       selector:
         boolean:
     send_second_alexa:
-      name: Send Second Reminder to Alexa
+      name: Second reminder → Alexa
       default: true
       selector:
         boolean:
-    # Timing controls
+
+    # Timers
     first_delay_minutes:
       name: First reminder after (minutes)
       default: 10
@@ -88,9 +118,9 @@ blueprint:
           max: 120
           mode: slider
           unit_of_measurement: minutes
+
     second_delay_minutes:
-      name: Second reminder after (minutes)
-      description: Total time since open for the second reminder
+      name: Second reminder after (minutes total)
       default: 60
       selector:
         number:
@@ -103,19 +133,24 @@ variables:
   sensor_list: !input garage_door_sensors
   cover_list: !input garage_door_covers
   cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
+
   first_delay: !input first_delay_minutes
   second_delay: !input second_delay_minutes
+
   send_initial_phone: !input send_initial_phone
   send_initial_alexa: !input send_initial_alexa
   send_first_phone: !input send_first_phone
   send_first_alexa: !input send_first_alexa
   send_second_phone: !input send_second_phone
   send_second_alexa: !input send_second_alexa
+
+  title_initial: !input title_initial
   msg_initial: !input msg_initial
+  title_first: !input title_first
   msg_first: !input msg_first
+  title_second: !input title_second
   msg_second: !input msg_second
-  mobile_notify_service: !input mobile_notify_service
-  alexa_target: !input alexa_target
+  close_button_label: !input close_button_label
 
 trigger:
   - platform: state
@@ -123,27 +158,33 @@ trigger:
     from: 'off'
     to: 'on'
 
+mode: parallel
+max: 10
+
 action:
   - variables:
       door_sensor: "{{ trigger.entity_id }}"
       door_name: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.to_state.name }}"
       door_cover: "{{ cover_map[trigger.entity_id] }}"
 
-  # Initial Alert
+  # Initial alert
   - parallel:
       - choose:
           - conditions:
               - condition: template
                 value_template: "{{ send_initial_phone }}"
             sequence:
-              - service: "{{ mobile_notify_service }}"
+              - device_id: !input mobile_device
+                domain: mobile_app
+                type: notify
+                title: "{{ title_initial }}"
+                message: "{{ msg_initial }}"
                 data:
-                  title: "🚪 Garage Alert"
-                  message: "{{ msg_initial }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "Close {{ door_name }}"
+                  actions:
+                    - action: "CLOSE_{{ door_sensor }}"
+                      title: "{{ close_button_label }}"
+        default: []
+
       - choose:
           - conditions:
               - condition: template
@@ -155,8 +196,9 @@ action:
                   message: "{{ msg_initial }}"
                   data:
                     type: announce
+        default: []
 
-  # First Reminder
+  # First reminder
   - delay: "{{ (first_delay | int) * 60 }}"
   - condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
@@ -166,14 +208,17 @@ action:
               - condition: template
                 value_template: "{{ send_first_phone }}"
             sequence:
-              - service: "{{ mobile_notify_service }}"
+              - device_id: !input mobile_device
+                domain: mobile_app
+                type: notify
+                title: "{{ title_first }}"
+                message: "{{ msg_first }}"
                 data:
-                  title: "⏱️ Garage Reminder"
-                  message: "{{ msg_first }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "Close {{ door_name }}"
+                  actions:
+                    - action: "CLOSE_{{ door_sensor }}"
+                      title: "{{ close_button_label }}"
+        default: []
+
       - choose:
           - conditions:
               - condition: template
@@ -185,8 +230,9 @@ action:
                   message: "{{ msg_first }}"
                   data:
                     type: announce
+        default: []
 
-  # Second Reminder
+  # Second reminder (total time = second_delay)
   - variables:
       remaining_minutes: "{{ max((second_delay | int) - (first_delay | int), 0) }}"
   - delay: "{{ remaining_minutes * 60 }}"
@@ -198,14 +244,17 @@ action:
               - condition: template
                 value_template: "{{ send_second_phone }}"
             sequence:
-              - service: "{{ mobile_notify_service }}"
+              - device_id: !input mobile_device
+                domain: mobile_app
+                type: notify
+                title: "{{ title_second }}"
+                message: "{{ msg_second }}"
                 data:
-                  title: "⌛ Garage Still Open"
-                  message: "{{ msg_second }}"
-                  data:
-                    actions:
-                      - action: "CLOSE_{{ door_sensor }}"
-                        title: "Close {{ door_name }}"
+                  actions:
+                    - action: "CLOSE_{{ door_sensor }}"
+                      title: "{{ close_button_label }}"
+        default: []
+
       - choose:
           - conditions:
               - condition: template
@@ -217,6 +266,5 @@ action:
                   message: "{{ msg_second }}"
                   data:
                     type: announce
-
-mode: parallel
-max: 10
+        default: []
+        
