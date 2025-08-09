@@ -3,27 +3,44 @@ blueprint:
   description: >
     Sends friendly mobile notifications and/or Alexa announcements when a garage
     door opens, with follow-up reminders if it stays open. Includes a button to
-    close the door from the notification. Works with two or more doors.
+    close the door from the notification.
 
-    Tip: In message/title inputs, use [[ door_name ]] as the placeholder (safer than {{ door_name }}).
+    Custom names: Provide a name for Sensor 1 / Sensor 2 (matching the order you
+    select the sensors). Leave blank to use the sensor's friendly name.
+    Tip: In message/title inputs, use [[ door_name ]] as the placeholder
+    (safer than {{ door_name }}).
 
   domain: automation
   input:
     garage_door_sensors:
-      name: Garage Door Sensors
-      description: Binary sensors for doors (state 'on' means open)
+      name: Garage Door Sensors (choose in order)
+      description: First = sensor 1, Second = sensor 2 (order matters)
       selector:
         entity:
           multiple: true
           domain: binary_sensor
 
     garage_door_covers:
-      name: Matching Cover Entities
+      name: Matching Cover Entities (same order)
       description: Covers for each sensor, in the same order
       selector:
         entity:
           multiple: true
           domain: cover
+
+    # Optional custom names for each sensor (matched by order)
+    custom_name_sensor_1:
+      name: Custom name for Sensor 1 (optional)
+      description: Leave blank to use Sensor 1's friendly name
+      default: ""
+      selector:
+        text:
+    custom_name_sensor_2:
+      name: Custom name for Sensor 2 (optional)
+      description: Leave blank to use Sensor 2's friendly name
+      default: ""
+      selector:
+        text:
 
     mobile_notify_service:
       name: Mobile notification service
@@ -151,12 +168,16 @@ action:
       cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
       first_delay: !input first_delay_minutes
       second_delay: !input second_delay_minutes
+
+      # toggles
       send_initial_phone: !input send_initial_phone
       send_initial_alexa: !input send_initial_alexa
       send_first_phone:  !input send_first_phone
       send_first_alexa:  !input send_first_alexa
       send_second_phone: !input send_second_phone
       send_second_alexa: !input send_second_alexa
+
+      # message/title inputs
       title_initial_in: !input title_initial
       msg_initial_in:   !input msg_initial
       title_first_in:   !input title_first
@@ -164,14 +185,29 @@ action:
       title_second_in:  !input title_second
       msg_second_in:    !input msg_second
       close_btn_in:     !input close_button_label
+
+      # naming
+      custom_name_sensor_1: !input custom_name_sensor_1
+      custom_name_sensor_2: !input custom_name_sensor_2
+
+      # services/devices
       mobile_notify_service: !input mobile_notify_service
       alexa_entity: !input alexa_target
 
-  # Identify door & names (now using the COVER'S friendly_name)
+  # Identify door & names (use SENSOR name by default; allow per-sensor custom names)
   - variables:
       door_sensor: "{{ trigger.entity_id }}"
       door_cover: "{{ cover_map[trigger.entity_id] }}"
-      door_name_real: "{{ state_attr(door_cover, 'friendly_name') or door_cover }}"
+      # Build a name map by order: sensor 1 -> custom_name1, sensor 2 -> custom_name2
+      name_map: >-
+        {{ dict([
+          ((sensor_list[0] if (sensor_list|length) > 0 else ''), custom_name_sensor_1),
+          ((sensor_list[1] if (sensor_list|length) > 1 else ''), custom_name_sensor_2)
+        ]) }}
+      # Choose: custom name (if provided) else sensor's friendly name else entity_id
+      door_name_real: >-
+        {{ (name_map.get(door_sensor) or '').strip()
+           or (state_attr(door_sensor, 'friendly_name') or door_sensor) }}
 
   # Safe placeholder substitution:
   #  - Prefer [[ door_name ]] (won't be pre-rendered by HA)
