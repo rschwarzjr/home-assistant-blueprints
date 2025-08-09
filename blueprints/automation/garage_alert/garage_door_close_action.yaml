@@ -1,22 +1,21 @@
 blueprint:
-  name: Garage Door Close Button Handler
+  name: Garage Door Close Button Handler (with Debug)
   description: >
-    Closes the matching garage door when you tap the "Close" action in the mobile
-    notification created by the Garage Door Open Alerts blueprint. Map sensors to
-    covers in the same order.
+    Listens for the mobile_app notification action from the alerts blueprint and closes
+    the matching cover. Includes debug notifications so you can see what was received
+    and why a close action did or didn’t run. Sensor → Cover order MUST match the alerts blueprint.
   domain: automation
   input:
     garage_door_sensors:
-      name: Garage Door Sensors
-      description: Sensors used in the alerts blueprint (order matters)
+      name: Garage Door Sensors (same order as alerts)
+      description: Binary sensors used in the alerts blueprint (order matters)
       selector:
         entity:
           multiple: true
           domain: binary_sensor
-
     garage_door_covers:
-      name: Matching Cover Entities
-      description: Covers in the same order as sensors
+      name: Matching Cover Entities (same order)
+      description: Covers in the same order as the sensors
       selector:
         entity:
           multiple: true
@@ -26,26 +25,64 @@ trigger:
   - platform: event
     event_type: mobile_app_notification_action
 
-condition:
-  - condition: template
-    value_template: >
-      {{ trigger.event.data.action is string and trigger.event.data.action.startswith('CLOSE_') }}
-
+# We’ll accept variations of CLOSE_<entity_id>, case-insensitive, and ignore stray spaces.
 variables:
   sensors: !input garage_door_sensors
   covers: !input garage_door_covers
   map: "{{ dict(zip(sensors, covers)) }}"
-  pressed: "{{ trigger.event.data.action[6:] }}"
+  raw_action: "{{ trigger.event.data.action | default('') }}"
+  action_norm: "{{ (raw_action | string).strip() }}"
+  is_close: "{{ action_norm[:6] | upper == 'CLOSE_' }}"
+  pressed: "{{ action_norm[6:] if is_close else '' }}"
+
+# Optional: add a condition so non-close actions are ignored quietly.
+condition: []
 
 action:
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ pressed in map }}"
+            value_template: "{{ is_close }}"
         sequence:
-          - service: cover.close_cover
-            target:
-              entity_id: "{{ map[pressed] }}"
-    default: []
+          # Debug: show what we received and what we’re matching against
+          - service: persistent_notification.create
+            data:
+              title: "Garage Close Button – Received"
+              message: >
+                Action: {{ raw_action }}
+                | Parsed pressed: {{ pressed }}
+                | Known sensors: {{ sensors | join(', ') }}
+                | Map keys: {{ map.keys() | list | join(', ') }}
 
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ pressed in map }}"
+                sequence:
+                  - service: cover.close_cover
+                    target:
+                      entity_id: "{{ map[pressed] }}"
+                  - service: persistent_notification.create
+                    data:
+                      title: "Garage Close Button – Closed"
+                      message: >
+                        Closed {{ map[pressed] }} (from action {{ raw_action }})
+              - conditions:
+                  - condition: template
+                    value_template: "{{ pressed not in map }}"
+                sequence:
+                  - service: persistent_notification.create
+                    data:
+                      title: "Garage Close Button – No Match"
+                      message: >
+                        No matching sensor key for '{{ pressed }}'.
+                        Did you select the SAME sensors (and order) in BOTH blueprints?
+                        Current keys: {{ map.keys() | list | join(', ') }}
+    default:
+      # Non-close action: log once for visibility (you can remove this if noisy)
+      - service: persistent_notification.create
+        data:
+          title: "Garage Close Button – Ignored Action"
+          message: >
+            Ignored action '{{ raw_action }}' (does not start with CLOSE_).
 mode: parallel
