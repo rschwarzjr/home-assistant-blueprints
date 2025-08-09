@@ -1,0 +1,70 @@
+blueprint:
+  name: Mirror Light Sync v1.0.0
+  description: >
+    Keep a mirror light (ESPHome smart outlet) synced with a closet light switch.
+    When the closet light is ON at any brightness, the outlet turns ON. When the
+    closet light turns OFF, the outlet turns OFF. Includes optional sync on HA start.
+  domain: automation
+  source_url: https://github.com/youruser/home-assistant-blueprints/blob/main/mirror_light_sync_v1.0.0.yaml
+
+  input:
+    source_light:
+      name: Closet Light (master)
+      description: The light entity to follow (dimmer or switch in the light domain).
+      selector:
+        entity:
+          domain: light
+
+    mirror_outlet:
+      name: Mirror Light Outlet (slave)
+      description: The ESPHome smart outlet to control (switch domain).
+      selector:
+        entity:
+          domain: switch
+
+    startup_sync:
+      name: Sync on Home Assistant start
+      description: Ensure the outlet matches the light state when HA restarts.
+      default: true
+      selector:
+        boolean: {}
+
+mode: single
+max_exceeded: silent
+
+trigger:
+  # Follow ON/OFF changes from the master light
+  - platform: state
+    entity_id: !input source_light
+    to: "on"
+  - platform: state
+    entity_id: !input source_light
+    to: "off"
+
+  # Optionally resync on HA start
+  - platform: homeassistant
+    event: start
+    enabled: !input startup_sync
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input source_light
+            state: "on"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input mirror_outlet
+
+      - conditions:
+          - condition: state
+            entity_id: !input source_light
+            state: "off"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input mirror_outlet
+              
