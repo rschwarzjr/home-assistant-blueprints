@@ -1,11 +1,10 @@
 blueprint:
-  name: Garage Door Open Alerts v1.13 (Quiet Hours, Multi-Channel, 3 Stages + Close Button)
+  name: Garage Door Open Alerts v1.14-stable (Quiet Hours, 3 Stages + Close Button)
   description: >
-    v1.13 — Flat action flow (no nesting near notify payload), aliases on each step to
-    avoid schema confusion; defaults: custom names = "Garage Door"; Alexa question defaulted
-    to "Do you want me to close it?".
-    Sends friendly phone notifications (with Close button) and/or Alexa announcements when a
-    garage door opens, with Stage 1/2/3 reminders. Separate Quiet Hours per channel.
+    v1.14-stable — Switched to mobile_app *device* notifications (no custom notify service
+    strings) to avoid <domain>.<name> parser issues. Keeps Alexa announcements, Close button,
+    Quiet Hours per channel, custom names default "Garage Door", and 3 reminder stages.
+    Default Alexa question: "Do you want me to close it?"
 
     Placeholders you can use in titles/messages:
       - [[ door_name ]]  (recommended; won't be pre-rendered by HA)
@@ -14,10 +13,10 @@ blueprint:
   domain: automation
 
   input:
-    # 1) SETUP: Sensors & Covers (order matters)
+    # 1) Sensors & covers (order matters)
     garage_door_sensors:
       name: Garage Door Sensors (choose in order)
-      description: First = sensor 1, Second = sensor 2 (order matters)
+      description: First = sensor 1, Second = sensor 2
       selector:
         entity:
           multiple: true
@@ -31,228 +30,168 @@ blueprint:
           multiple: true
           domain: cover
 
-    # 2) OPTIONAL NAMES (by order)
+    # 2) Optional custom names (defaults provided)
     custom_name_sensor_1:
       name: Custom name for Sensor 1
-      description: Used in messages; leave as "Garage Door" or customize
       default: "Garage Door"
-      selector:
-        text:
+      selector: { text: {} }
     custom_name_sensor_2:
       name: Custom name for Sensor 2
-      description: Used in messages; leave as "Garage Door" or customize
       default: "Garage Door"
-      selector:
-        text:
+      selector: { text: {} }
 
-    # 3) CHANNELS: Phones (up to 3) & Alexa targets
-    mobile_notify_service_1:
-      name: Phone notify service (primary)
-      description: e.g., notify.mobile_app_robert_schwarz
+    # 3) Channels
+    mobile_device:
+      name: Phone (mobile_app device)
+      description: Pick your phone registered with the mobile_app integration
       selector:
-        select:
-          options:
-            - notify.mobile_app_robert_schwarz
-          custom_value: true
-    mobile_notify_service_2:
-      name: Phone notify service (secondary, optional)
-      default: ""
-      selector:
-        select:
-          options: []
-          custom_value: true
-    mobile_notify_service_3:
-      name: Phone notify service (tertiary, optional)
-      default: ""
-      selector:
-        select:
-          options: []
-          custom_value: true
+        device:
+          integration: mobile_app
 
     alexa_targets:
       name: Alexa Devices
-      description: One or more Alexa media_player entities
       selector:
         entity:
           multiple: true
           domain: media_player
 
-    # 4) QUIET HOURS (separate for Phone and Alexa)
+    # 4) Quiet hours
     phone_quiet_enabled:
       name: Quiet Hours for Phone
       default: false
-      selector:
-        boolean:
+      selector: { boolean: {} }
     phone_quiet_start:
       name: Phone Quiet Start
       default: "22:00:00"
-      selector:
-        time:
+      selector: { time: {} }
     phone_quiet_end:
       name: Phone Quiet End
       default: "07:00:00"
-      selector:
-        time:
+      selector: { time: {} }
 
     alexa_quiet_enabled:
       name: Quiet Hours for Alexa
       default: false
-      selector:
-        boolean:
+      selector: { boolean: {} }
     alexa_quiet_start:
       name: Alexa Quiet Start
       default: "22:00:00"
-      selector:
-        time:
+      selector: { time: {} }
     alexa_quiet_end:
       name: Alexa Quiet End
       default: "07:00:00"
-      selector:
-        time:
+      selector: { time: {} }
 
-    # 5) DELAYS (Stage 1 & 2) + Stage 3 total
+    # 5) Delays
     first_delay_minutes:
       name: First reminder after (minutes)
       default: 10
       selector:
-        number:
-          min: 1
-          max: 120
-          mode: slider
-          unit_of_measurement: minutes
+        number: { min: 1, max: 120, mode: slider, unit_of_measurement: minutes }
 
     second_delay_minutes:
       name: Second reminder after (minutes total)
       default: 60
       selector:
-        number:
-          min: 2
-          max: 240
-          mode: slider
-          unit_of_measurement: minutes
+        number: { min: 2, max: 240, mode: slider, unit_of_measurement: minutes }
 
     third_delay_minutes:
       name: Third reminder after (minutes total)
       default: 180
       selector:
-        number:
-          min: 5
-          max: 720
-          mode: slider
-          unit_of_measurement: minutes
+        number: { min: 5, max: 720, mode: slider, unit_of_measurement: minutes }
 
-    # 6) INITIAL ALERT (Stage 0)
+    # 6) Initial alert (Stage 0)
     send_initial_phone:
       name: Initial alert → Phone
       default: true
-      selector:
-        boolean:
+      selector: { boolean: {} }
     send_initial_alexa:
       name: Initial alert → Alexa
       default: true
-      selector:
-        boolean:
+      selector: { boolean: {} }
     title_initial:
       name: Initial alert title
       default: "🚪 Garage Alert"
-      selector:
-        text:
+      selector: { text: {} }
     msg_initial:
       name: Initial alert message
       default: "Hey! [[ door_name ]] was just opened."
-      selector:
-        text:
+      selector: { text: {} }
     alexa_question_initial:
       name: Alexa question (initial; optional)
       default: "Do you want me to close it?"
-      selector:
-        text:
+      selector: { text: {} }
     close_button_label:
       name: Phone button label
       default: "Close [[ door_name ]]"
-      selector:
-        text:
+      selector: { text: {} }
 
-    # 7) STAGE 1 (First reminder)
+    # 7) Stage 1
     send_first_phone:
       name: First reminder → Phone
       default: true
-      selector:
-        boolean:
+      selector: { boolean: {} }
     send_first_alexa:
       name: First reminder → Alexa
       default: true
-      selector:
-        boolean:
+      selector: { boolean: {} }
     title_first:
       name: First reminder title
       default: "⏱️ Garage Reminder"
-      selector:
-        text:
+      selector: { text: {} }
     msg_first:
       name: First reminder message
       default: "Heads up! [[ door_name ]] has been open for {{ first_delay }} minutes."
-      selector:
-        text:
+      selector: { text: {} }
     alexa_question_first:
       name: Alexa question (stage 1; optional)
       default: "Do you want me to close it?"
-      selector:
-        text:
+      selector: { text: {} }
 
-    # 8) STAGE 2 (Second total delay)
+    # 8) Stage 2
     send_second_phone:
       name: Second reminder → Phone
       default: true
-      selector:
-        boolean:
+      selector: { boolean: {} }
     send_second_alexa:
       name: Second reminder → Alexa
       default: true
-      selector:
-        boolean:
+      selector: { boolean: {} }
     title_second:
       name: Second reminder title
       default: "⌛ Garage Still Open"
-      selector:
-        text:
+      selector: { text: {} }
     msg_second:
       name: Second reminder message
       default: "FYI — [[ door_name ]] has been open for {{ second_delay }} minutes."
-      selector:
-        text:
+      selector: { text: {} }
     alexa_question_second:
       name: Alexa question (stage 2; optional)
       default: "Do you want me to close it?"
-      selector:
-        text:
+      selector: { text: {} }
 
-    # 9) STAGE 3 (Third total delay)
+    # 9) Stage 3
     send_third_phone:
       name: Third reminder → Phone
       default: true
-      selector:
-        boolean:
+      selector: { boolean: {} }
     send_third_alexa:
       name: Third reminder → Alexa
       default: true
-      selector:
-        boolean:
+      selector: { boolean: {} }
     title_third:
       name: Third reminder title
       default: "⚠️ Garage Still Open"
-      selector:
-        text:
+      selector: { text: {} }
     msg_third:
       name: Third reminder message
       default: "Reminder: [[ door_name ]] has been open for {{ third_delay }} minutes."
-      selector:
-        text:
+      selector: { text: {} }
     alexa_question_third:
       name: Alexa question (stage 3; optional)
       default: "Do you want me to close it?"
-      selector:
-        text:
+      selector: { text: {} }
 
 trigger:
   - platform: state
@@ -264,8 +203,7 @@ mode: parallel
 max: 10
 
 action:
-  # Inputs & maps
-  - alias: "v1.13: Load inputs + maps"
+  - alias: "v1.14: Load inputs & maps"
     variables:
       sensor_list: !input garage_door_sensors
       cover_list: !input garage_door_covers
@@ -303,18 +241,13 @@ action:
       msg_third_in:     !input msg_third
       close_btn_in:     !input close_button_label
 
-      svc1: !input mobile_notify_service_1
-      svc2: !input mobile_notify_service_2
-      svc3: !input mobile_notify_service_3
       alexa_targets: !input alexa_targets
-
       alexa_q_initial: !input alexa_question_initial
       alexa_q_first:   !input alexa_question_first
       alexa_q_second:  !input alexa_question_second
       alexa_q_third:   !input alexa_question_third
 
-  # Who triggered & display name (sensor name with optional overrides)
-  - alias: "v1.13: Determine triggering door + display name"
+  - alias: "v1.14: Determine door & name"
     variables:
       door_sensor: "{{ trigger.entity_id }}"
       door_cover:  "{{ cover_map[trigger.entity_id] }}"
@@ -325,8 +258,7 @@ action:
         ]) }}
       door_name_real: "{{ name_map.get(door_sensor) or door_sensor }}"
 
-  # Final titles/messages/button label
-  - alias: "v1.13: Build titles/messages with [[ door_name ]]"
+  - alias: "v1.14: Build titles/messages"
     variables:
       title_initial: "{{ title_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
       msg_initial:   "{{ (msg_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real)) or ('Door opened — ' ~ door_name_real) }}"
@@ -338,8 +270,7 @@ action:
       msg_third:     "{{ msg_third_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
       btn_label:     "{{ close_btn_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
 
-  # Quiet hour helpers (per-channel). Works across midnight.
-  - alias: "v1.13: Quiet-hour helpers"
+  - alias: "v1.14: Quiet-hour helpers"
     variables:
       _now_sec: "{{ now().hour*3600 + now().minute*60 + now().second }}"
       _p_start: "{{ strptime(phone_quiet_start, '%H:%M:%S').hour*3600 + strptime(phone_quiet_start, '%H:%M:%S').minute*60 + strptime(phone_quiet_start, '%H:%M:%S').second }}"
@@ -368,74 +299,36 @@ action:
   ####################################
   # Initial alert
   ####################################
-  # PHONE — three flat options (no nesting near notify payload)
-  - alias: "v1.13: Initial → Phone svc1"
+  - alias: "v1.14: Initial → Phone"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
+            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) }}"
         sequence:
-          - alias: "v1.13: Notify svc1"
-            service: !input mobile_notify_service_1
+          - device_id: !input mobile_device
+            domain: mobile_app
+            type: notify
+            title: "{{ title_initial }}"
+            message: "{{ msg_initial }}"
             data:
-              title: "{{ title_initial }}"
-              message: "{{ msg_initial }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
+              actions:
+                - action: "CLOSE_{{ door_sensor }}"
+                  title: "{{ btn_label }}"
     default: []
 
-  - alias: "v1.13: Initial → Phone svc2"
-    choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
-        sequence:
-          - alias: "v1.13: Notify svc2"
-            service: !input mobile_notify_service_2
-            data:
-              title: "{{ title_initial }}"
-              message: "{{ msg_initial }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
-    default: []
-
-  - alias: "v1.13: Initial → Phone svc3"
-    choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ (send_initial_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
-        sequence:
-          - alias: "v1.13: Notify svc3"
-            service: !input mobile_notify_service_3
-            data:
-              title: "{{ title_initial }}"
-              message: "{{ msg_initial }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
-    default: []
-
-  # ALEXA (separate step)
-  - alias: "v1.13: Initial → Alexa announce"
+  - alias: "v1.14: Initial → Alexa"
     choose:
       - conditions:
           - condition: template
             value_template: "{{ (send_initial_alexa | bool) and (not alexa_quiet_now) }}"
         sequence:
-          - alias: "v1.13: Alexa announce"
-            service: notify.alexa_media
+          - service: notify.alexa_media
             data:
               target: !input alexa_targets
               message: "{{ msg_initial }}"
               data:
                 type: announce
-          - alias: "v1.13: Alexa optional question"
-            choose:
+          - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ alexa_q_initial | length > 0 }}"
@@ -449,68 +342,32 @@ action:
     default: []
 
   ####################################
-  # Stage 1 (first delay)
+  # Stage 1
   ####################################
-  - alias: "v1.13: Wait for first delay"
+  - alias: "v1.14: Wait Stage 1"
     delay: "{{ (first_delay | int) * 60 }}"
-  - alias: "v1.13: Still open for Stage 1?"
+  - alias: "v1.14: Still open (Stage 1)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  # PHONE (three flat options)
-  - alias: "v1.13: Stage1 → Phone svc1"
+  - alias: "v1.14: Stage 1 → Phone"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
+            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) }}"
         sequence:
-          - alias: "v1.13: Notify svc1"
-            service: !input mobile_notify_service_1
+          - device_id: !input mobile_device
+            domain: mobile_app
+            type: notify
+            title: "{{ title_first }}"
+            message: "{{ msg_first }}"
             data:
-              title: "{{ title_first }}"
-              message: "{{ msg_first }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
+              actions:
+                - action: "CLOSE_{{ door_sensor }}"
+                  title: "{{ btn_label }}"
     default: []
 
-  - alias: "v1.13: Stage1 → Phone svc2"
-    choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
-        sequence:
-          - alias: "v1.13: Notify svc2"
-            service: !input mobile_notify_service_2
-            data:
-              title: "{{ title_first }}"
-              message: "{{ msg_first }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
-    default: []
-
-  - alias: "v1.13: Stage1 → Phone svc3"
-    choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ (send_first_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
-        sequence:
-          - alias: "v1.13: Notify svc3"
-            service: !input mobile_notify_service_3
-            data:
-              title: "{{ title_first }}"
-              message: "{{ msg_first }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
-    default: []
-
-  # ALEXA
-  - alias: "v1.13: Stage1 → Alexa announce"
+  - alias: "v1.14: Stage 1 → Alexa"
     choose:
       - conditions:
           - condition: template
@@ -522,8 +379,7 @@ action:
               message: "{{ msg_first }}"
               data:
                 type: announce
-          - alias: "v1.13: Alexa optional question"
-            choose:
+          - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ alexa_q_first | length > 0 }}"
@@ -537,71 +393,35 @@ action:
     default: []
 
   ####################################
-  # Stage 2 (second total delay)
+  # Stage 2
   ####################################
-  - alias: "v1.13: Compute remaining to Stage 2"
+  - alias: "v1.14: Compute remaining to Stage 2"
     variables:
       remaining_minutes: "{{ max((second_delay | int) - (first_delay | int), 0) }}"
-  - alias: "v1.13: Wait remaining to Stage 2"
+  - alias: "v1.14: Wait Stage 2"
     delay: "{{ remaining_minutes * 60 }}"
-  - alias: "v1.13: Still open for Stage 2?"
+  - alias: "v1.14: Still open (Stage 2)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  # PHONE (three flat options)
-  - alias: "v1.13: Stage2 → Phone svc1"
+  - alias: "v1.14: Stage 2 → Phone"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
+            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) }}"
         sequence:
-          - alias: "v1.13: Notify svc1"
-            service: !input mobile_notify_service_1
+          - device_id: !input mobile_device
+            domain: mobile_app
+            type: notify
+            title: "{{ title_second }}"
+            message: "{{ msg_second }}"
             data:
-              title: "{{ title_second }}"
-              message: "{{ msg_second }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
+              actions:
+                - action: "CLOSE_{{ door_sensor }}"
+                  title: "{{ btn_label }}"
     default: []
 
-  - alias: "v1.13: Stage2 → Phone svc2"
-    choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
-        sequence:
-          - alias: "v1.13: Notify svc2"
-            service: !input mobile_notify_service_2
-            data:
-              title: "{{ title_second }}"
-              message: "{{ msg_second }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
-    default: []
-
-  - alias: "v1.13: Stage2 → Phone svc3"
-    choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ (send_second_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
-        sequence:
-          - alias: "v1.13: Notify svc3"
-            service: !input mobile_notify_service_3
-            data:
-              title: "{{ title_second }}"
-              message: "{{ msg_second }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
-    default: []
-
-  # ALEXA
-  - alias: "v1.13: Stage2 → Alexa announce"
+  - alias: "v1.14: Stage 2 → Alexa"
     choose:
       - conditions:
           - condition: template
@@ -613,8 +433,7 @@ action:
               message: "{{ msg_second }}"
               data:
                 type: announce
-          - alias: "v1.13: Alexa optional question"
-            choose:
+          - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ alexa_q_second | length > 0 }}"
@@ -628,71 +447,35 @@ action:
     default: []
 
   ####################################
-  # Stage 3 (third total delay)
+  # Stage 3
   ####################################
-  - alias: "v1.13: Compute remaining to Stage 3"
+  - alias: "v1.14: Compute remaining to Stage 3"
     variables:
       remaining_minutes_2: "{{ max((third_delay | int) - (second_delay | int), 0) }}"
-  - alias: "v1.13: Wait remaining to Stage 3"
+  - alias: "v1.14: Wait Stage 3"
     delay: "{{ remaining_minutes_2 * 60 }}"
-  - alias: "v1.13: Still open for Stage 3?"
+  - alias: "v1.14: Still open (Stage 3)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
 
-  # PHONE (three flat options)
-  - alias: "v1.13: Stage3 → Phone svc1"
+  - alias: "v1.14: Stage 3 → Phone"
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc1 | length > 0) }}"
+            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) }}"
         sequence:
-          - alias: "v1.13: Notify svc1"
-            service: !input mobile_notify_service_1
+          - device_id: !input mobile_device
+            domain: mobile_app
+            type: notify
+            title: "{{ title_third }}"
+            message: "{{ msg_third }}"
             data:
-              title: "{{ title_third }}"
-              message: "{{ msg_third }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
+              actions:
+                - action: "CLOSE_{{ door_sensor }}"
+                  title: "{{ btn_label }}"
     default: []
 
-  - alias: "v1.13: Stage3 → Phone svc2"
-    choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc2 | length > 0) }}"
-        sequence:
-          - alias: "v1.13: Notify svc2"
-            service: !input mobile_notify_service_2
-            data:
-              title: "{{ title_third }}"
-              message: "{{ msg_third }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
-    default: []
-
-  - alias: "v1.13: Stage3 → Phone svc3"
-    choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ (send_third_phone | bool) and (not phone_quiet_now) and (svc3 | length > 0) }}"
-        sequence:
-          - alias: "v1.13: Notify svc3"
-            service: !input mobile_notify_service_3
-            data:
-              title: "{{ title_third }}"
-              message: "{{ msg_third }}"
-              data:
-                actions:
-                  - action: "CLOSE_{{ door_sensor }}"
-                    title: "{{ btn_label }}"
-    default: []
-
-  # ALEXA
-  - alias: "v1.13: Stage3 → Alexa announce"
+  - alias: "v1.14: Stage 3 → Alexa"
     choose:
       - conditions:
           - condition: template
@@ -704,8 +487,7 @@ action:
               message: "{{ msg_third }}"
               data:
                 type: announce
-          - alias: "v1.13: Alexa optional question"
-            choose:
+          - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ alexa_q_third | length > 0 }}"
