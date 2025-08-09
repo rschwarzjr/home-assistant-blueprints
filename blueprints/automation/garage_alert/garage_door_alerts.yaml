@@ -130,21 +130,24 @@ blueprint:
           unit_of_measurement: minutes
 
 variables:
+  # Map sensors to covers
   sensor_list: !input garage_door_sensors
   cover_list: !input garage_door_covers
   cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
 
+  # Delays
   first_delay: !input first_delay_minutes
   second_delay: !input second_delay_minutes
 
-  # Cast toggles to real booleans to avoid 'truthy' string issues
-  send_initial_phone: "{{ ( !input send_initial_phone ) | bool }}"
-  send_initial_alexa: "{{ ( !input send_initial_alexa ) | bool }}"
-  send_first_phone:  "{{ ( !input send_first_phone  ) | bool }}"
-  send_first_alexa:  "{{ ( !input send_first_alexa  ) | bool }}"
-  send_second_phone: "{{ ( !input send_second_phone ) | bool }}"
-  send_second_alexa: "{{ ( !input send_second_alexa ) | bool }}"
+  # Toggles (assigned directly — cast with | bool at use sites)
+  send_initial_phone: !input send_initial_phone
+  send_initial_alexa: !input send_initial_alexa
+  send_first_phone:  !input send_first_phone
+  send_first_alexa:  !input send_first_alexa
+  send_second_phone: !input send_second_phone
+  send_second_alexa: !input send_second_alexa
 
+  # Titles/messages as provided
   title_initial: !input title_initial
   msg_initial:   !input msg_initial
   title_first:   !input title_first
