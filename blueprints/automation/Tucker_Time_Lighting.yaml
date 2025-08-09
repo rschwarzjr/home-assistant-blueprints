@@ -1,10 +1,11 @@
 blueprint:
-  name: Tucker Time Lighting (Brightness Only v1.5)
+  name: Tucker Time Lighting (On/Off Lists v1.6)
   description: >
-    Say "Alexa, it's Tucker time" to set up to 10 lights.
-    If a light's brightness is 0, this blueprint will TURN THAT LIGHT OFF.
-    Otherwise it turns the light on at the specified brightness.
-    Triggered by an input_boolean exposed to Alexa, then auto-resets.
+    Say "Alexa, it's Tucker time" to:
+      • Turn ON a list of lights to a single chosen brightness (applied to all)
+      • Turn OFF a separate list of lights
+    Uses a multi-entity selector so you can add/remove lights inline.
+    Triggered by an input_boolean exposed to Alexa; auto-resets after running.
 
   domain: automation
   input:
@@ -17,9 +18,32 @@ blueprint:
         entity:
           domain: input_boolean
 
+    # ---- Lights to TURN ON ----
+    lights_on:
+      name: Lights to Turn ON
+      description: >
+        Select one or more lights to turn ON. Add as many as you like.
+        All selected lights will use the brightness below.
+      selector:
+        entity:
+          domain: light
+          multiple: true
+
+    on_brightness:
+      name: ON Brightness (1–255)
+      description: >
+        Brightness applied to ALL lights in "Lights to Turn ON".
+        (Tip: 128 ≈ ~50%.)
+      default: 200
+      selector:
+        number:
+          min: 1
+          max: 255
+          mode: slider
+
     transition_seconds:
       name: Transition (seconds)
-      description: Optional transition time (if supported).
+      description: Optional fade time for turning ON (if supported).
       default: 0
       selector:
         number:
@@ -28,175 +52,15 @@ blueprint:
           step: 1
           mode: slider
 
-    # -------- Light 1 --------
-    light_1:
-      name: Light 1
-      description: Leave blank if unused
-      default: []
+    # ---- Lights to TURN OFF ----
+    lights_off:
+      name: Lights to Turn OFF
+      description: >
+        Select one or more lights to turn OFF. Add as many as you like.
       selector:
         entity:
           domain: light
-    light_1_brightness:
-      name: Light 1 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 2 --------
-    light_2:
-      name: Light 2
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_2_brightness:
-      name: Light 2 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 3 --------
-    light_3:
-      name: Light 3
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_3_brightness:
-      name: Light 3 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 4 --------
-    light_4:
-      name: Light 4
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_4_brightness:
-      name: Light 4 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 5 --------
-    light_5:
-      name: Light 5
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_5_brightness:
-      name: Light 5 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 6 --------
-    light_6:
-      name: Light 6
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_6_brightness:
-      name: Light 6 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 7 --------
-    light_7:
-      name: Light 7
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_7_brightness:
-      name: Light 7 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 8 --------
-    light_8:
-      name: Light 8
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_8_brightness:
-      name: Light 8 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 9 --------
-    light_9:
-      name: Light 9
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_9_brightness:
-      name: Light 9 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
-
-    # -------- Light 10 --------
-    light_10:
-      name: Light 10
-      description: Leave blank if unused
-      default: []
-      selector:
-        entity:
-          domain: light
-    light_10_brightness:
-      name: Light 10 Brightness (0–255, 0 = OFF)
-      default: 200
-      selector:
-        number:
-          min: 0
-          max: 255
-          mode: slider
+          multiple: true
 
 mode: single
 max_exceeded: silent
@@ -207,209 +71,32 @@ trigger:
     to: "on"
 
 variables:
-  tsec: !input transition_seconds
-
-  l1: !input light_1
-  b1: !input light_1_brightness
-  l2: !input light_2
-  b2: !input light_2_brightness
-  l3: !input light_3
-  b3: !input light_3_brightness
-  l4: !input light_4
-  b4: !input light_4_brightness
-  l5: !input light_5
-  b5: !input light_5_brightness
-  l6: !input light_6
-  b6: !input light_6_brightness
-  l7: !input light_7
-  b7: !input light_7_brightness
-  l8: !input light_8
-  b8: !input light_8_brightness
-  l9: !input light_9
-  b9: !input light_9_brightness
-  l10: !input light_10
-  b10: !input light_10_brightness
+  _on_list: !input lights_on
+  _off_list: !input lights_off
 
 action:
-  # Light 1
+  # Turn ON group (if any selected)
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l1|length > 0 and (b1|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_1 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l1|length > 0 and (b1|int) > 0 }}"
+            value_template: "{{ _on_list is defined and (_on_list | length) > 0 }}"
         sequence:
           - service: light.turn_on
+            target:
+              entity_id: !input lights_on
             data:
-              entity_id: !input light_1
-              brightness: !input light_1_brightness
+              brightness: !input on_brightness
               transition: !input transition_seconds
 
-  # Light 2
+  # Turn OFF group (if any selected)
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ l2|length > 0 and (b2|int) <= 0 }}"
+            value_template: "{{ _off_list is defined and (_off_list | length) > 0 }}"
         sequence:
           - service: light.turn_off
-            data: { entity_id: !input light_2 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l2|length > 0 and (b2|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_2
-              brightness: !input light_2_brightness
-              transition: !input transition_seconds
-
-  # Light 3
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ l3|length > 0 and (b3|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_3 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l3|length > 0 and (b3|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_3
-              brightness: !input light_3_brightness
-              transition: !input transition_seconds
-
-  # Light 4
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ l4|length > 0 and (b4|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_4 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l4|length > 0 and (b4|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_4
-              brightness: !input light_4_brightness
-              transition: !input transition_seconds
-
-  # Light 5
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ l5|length > 0 and (b5|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_5 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l5|length > 0 and (b5|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_5
-              brightness: !input light_5_brightness
-              transition: !input transition_seconds
-
-  # Light 6
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ l6|length > 0 and (b6|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_6 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l6|length > 0 and (b6|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_6
-              brightness: !input light_6_brightness
-              transition: !input transition_seconds
-
-  # Light 7
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ l7|length > 0 and (b7|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_7 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l7|length > 0 and (b7|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_7
-              brightness: !input light_7_brightness
-              transition: !input transition_seconds
-
-  # Light 8
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ l8|length > 0 and (b8|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_8 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l8|length > 0 and (b8|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_8
-              brightness: !input light_8_brightness
-              transition: !input transition_seconds
-
-  # Light 9
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ l9|length > 0 and (b9|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_9 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l9|length > 0 and (b9|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_9
-              brightness: !input light_9_brightness
-              transition: !input transition_seconds
-
-  # Light 10
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ l10|length > 0 and (b10|int) <= 0 }}"
-        sequence:
-          - service: light.turn_off
-            data: { entity_id: !input light_10 }
-      - conditions:
-          - condition: template
-            value_template: "{{ l10|length > 0 and (b10|int) > 0 }}"
-        sequence:
-          - service: light.turn_on
-            data:
-              entity_id: !input light_10
-              brightness: !input light_10_brightness
-              transition: !input transition_seconds
+            target:
+              entity_id: !input lights_off
 
   # Reset helper for next time
   - delay:
@@ -417,4 +104,3 @@ action:
   - service: input_boolean.turn_off
     target:
       entity_id: !input alexa_trigger
-      
