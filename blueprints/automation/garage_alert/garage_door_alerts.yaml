@@ -4,6 +4,9 @@ blueprint:
     Sends friendly mobile notifications and/or Alexa announcements when a garage
     door opens, with follow-up reminders if it stays open. Includes a button to
     close the door from the notification. Works with two or more doors.
+
+    Tip: In message/title inputs, use [[ door_name ]] as the placeholder (safer than {{ door_name }}).
+
   domain: automation
   input:
     garage_door_sensors:
@@ -38,7 +41,7 @@ blueprint:
         entity:
           domain: media_player
 
-    # Custom titles & messages (you can include {{ door_name }}, {{ first_delay }}, {{ second_delay }})
+    # Custom titles & messages (placeholders supported: [[ door_name ]] or {{ door_name }})
     title_initial:
       name: Initial alert title
       default: "🚪 Garage Alert"
@@ -46,7 +49,7 @@ blueprint:
         text:
     msg_initial:
       name: Initial alert message
-      default: "Hey! {{ door_name }} was just opened."
+      default: "Hey! [[ door_name ]] was just opened."
       selector:
         text:
 
@@ -57,7 +60,7 @@ blueprint:
         text:
     msg_first:
       name: First reminder message
-      default: "Heads up! {{ door_name }} has been open for {{ first_delay }} minutes."
+      default: "Heads up! [[ door_name ]] has been open for {{ first_delay }} minutes."
       selector:
         text:
 
@@ -68,13 +71,13 @@ blueprint:
         text:
     msg_second:
       name: Second reminder message
-      default: "FYI — {{ door_name }} has been open for {{ second_delay }} minutes."
+      default: "FYI — [[ door_name ]] has been open for {{ second_delay }} minutes."
       selector:
         text:
 
     close_button_label:
       name: Button label
-      default: "Close {{ door_name }}"
+      default: "Close [[ door_name ]]"
       selector:
         text:
 
@@ -141,7 +144,7 @@ mode: parallel
 max: 10
 
 action:
-  # Pull inputs into variables
+  # Pull inputs
   - variables:
       sensor_list: !input garage_door_sensors
       cover_list: !input garage_door_covers
@@ -154,31 +157,53 @@ action:
       send_first_alexa:  !input send_first_alexa
       send_second_phone: !input send_second_phone
       send_second_alexa: !input send_second_alexa
-      title_initial: !input title_initial
-      msg_initial:   !input msg_initial
-      title_first:   !input title_first
-      msg_first:     !input msg_first
-      title_second:  !input title_second
-      msg_second:    !input msg_second
-      close_button_label: !input close_button_label
+      title_initial_in: !input title_initial
+      msg_initial_in:   !input msg_initial
+      title_first_in:   !input title_first
+      msg_first_in:     !input msg_first
+      title_second_in:  !input title_second
+      msg_second_in:    !input msg_second
+      close_btn_in:     !input close_button_label
       mobile_notify_service: !input mobile_notify_service
       alexa_entity: !input alexa_target
 
-  # Identify door & build friendly name
+  # Identify door & friendly name
   - variables:
       door_sensor: "{{ trigger.entity_id }}"
       door_name_real: "{{ state_attr(trigger.entity_id, 'friendly_name') or trigger.to_state.name }}"
       door_cover: "{{ cover_map[trigger.entity_id] }}"
 
-  # Resolve titles/messages by replacing {{ door_name }} with the actual name
+  # Safe placeholder substitution:
+  #  - Prefer [[ door_name ]] (won't be pre-rendered by HA)
+  #  - Also replace {{ door_name }} if it survived
+  #  - If neither placeholder exists, append the name so it's always present
   - variables:
-      t_initial: "{{ (title_initial | default('🚪 Garage Alert')) | replace('{{ door_name }}', door_name_real) }}"
-      m_initial: "{{ (msg_initial   | default('Hey! {{ door_name }} was just opened.')) | replace('{{ door_name }}', door_name_real) }}"
-      t_first:   "{{ (title_first  | default('⏱️ Garage Reminder')) | replace('{{ door_name }}', door_name_real) }}"
-      m_first:   "{{ (msg_first    | default('Heads up! {{ door_name }} has been open for {{ first_delay }} minutes.')) | replace('{{ door_name }}', door_name_real) }}"
-      t_second:  "{{ (title_second | default('⌛ Garage Still Open')) | replace('{{ door_name }}', door_name_real) }}"
-      m_second:  "{{ (msg_second   | default('FYI — {{ door_name }} has been open for {{ second_delay }} minutes.')) | replace('{{ door_name }}', door_name_real) }}"
-      btn_label: "{{ (close_button_label | default('Close {{ door_name }}')) | replace('{{ door_name }}', door_name_real) }}"
+      _has_dn_initial: "{{ ('[[ door_name' in msg_initial_in) or ('{{ door_name' in msg_initial_in) }}"
+      _has_dn_first:   "{{ ('[[ door_name' in msg_first_in)   or ('{{ door_name' in msg_first_in) }}"
+      _has_dn_second:  "{{ ('[[ door_name' in msg_second_in)  or ('{{ door_name' in msg_second_in) }}"
+      _has_dn_btn:     "{{ ('[[ door_name' in close_btn_in)   or ('{{ door_name' in close_btn_in) }}"
+
+      title_initial: "{{ title_initial_in }}"
+      title_first:   "{{ title_first_in }}"
+      title_second:  "{{ title_second_in }}"
+
+      msg_initial_stage1: "{{ msg_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+      msg_first_stage1:   "{{ msg_first_in   | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+      msg_second_stage1:  "{{ msg_second_in  | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+      btn_label_stage1:   "{{ close_btn_in   | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+
+      msg_initial: >
+        {% if _has_dn_initial %}{{ msg_initial_stage1 }}
+        {% else %}{{ msg_initial_stage1 ~ ' — ' ~ door_name_real }}{% endif %}
+      msg_first: >
+        {% if _has_dn_first %}{{ msg_first_stage1 }}
+        {% else %}{{ msg_first_stage1 ~ ' — ' ~ door_name_real }}{% endif %}
+      msg_second: >
+        {% if _has_dn_second %}{{ msg_second_stage1 }}
+        {% else %}{{ msg_second_stage1 ~ ' — ' ~ door_name_real }}{% endif %}
+      btn_label: >
+        {% if _has_dn_btn %}{{ btn_label_stage1 }}
+        {% else %}{{ btn_label_stage1 ~ ' ' ~ door_name_real }}{% endif %}
 
   # Initial alert
   - parallel:
@@ -189,8 +214,8 @@ action:
             sequence:
               - service: !input mobile_notify_service
                 data:
-                  title: "{{ t_initial }}"
-                  message: "{{ m_initial }}"
+                  title: "{{ title_initial }}"
+                  message: "{{ msg_initial }}"
                   data:
                     actions:
                       - action: "CLOSE_{{ door_sensor }}"
@@ -205,7 +230,7 @@ action:
               - service: notify.alexa_media
                 data:
                   target: "{{ alexa_entity }}"
-                  message: "{{ m_initial }}"
+                  message: "{{ msg_initial }}"
                   data:
                     type: announce
         default: []
@@ -222,8 +247,8 @@ action:
             sequence:
               - service: !input mobile_notify_service
                 data:
-                  title: "{{ t_first }}"
-                  message: "{{ m_first }}"
+                  title: "{{ title_first }}"
+                  message: "{{ msg_first }}"
                   data:
                     actions:
                       - action: "CLOSE_{{ door_sensor }}"
@@ -238,7 +263,7 @@ action:
               - service: notify.alexa_media
                 data:
                   target: "{{ alexa_entity }}"
-                  message: "{{ m_first }}"
+                  message: "{{ msg_first }}"
                   data:
                     type: announce
         default: []
@@ -257,8 +282,8 @@ action:
             sequence:
               - service: !input mobile_notify_service
                 data:
-                  title: "{{ t_second }}"
-                  message: "{{ m_second }}"
+                  title: "{{ title_second }}"
+                  message: "{{ msg_second }}"
                   data:
                     actions:
                       - action: "CLOSE_{{ door_sensor }}"
@@ -273,7 +298,7 @@ action:
               - service: notify.alexa_media
                 data:
                   target: "{{ alexa_entity }}"
-                  message: "{{ m_second }}"
+                  message: "{{ msg_second }}"
                   data:
                     type: announce
         default: []
