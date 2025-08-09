@@ -1,31 +1,25 @@
 blueprint:
-  name: Tucker Time Lighting (Scene Trigger)
+  name: Tucker Time Lighting (Direct Light Control v1.3)
   description: >
-    Say "Alexa, it's Tucker time" and this automation will activate a chosen scene.
-    Use a scene to set any number of lights with exact brightness, color, and temperature.
-    This listens for an input_boolean helper (exposed to Alexa) turning ON, then activates
-    the scene and resets the helper back to OFF for the next use.
+    Say "Alexa, it's Tucker time" to turn on up to 10 lights with individual settings.
+    Everything is configured here—no separate scene needed.
+    Uses an input_boolean helper (exposed to Alexa) as the trigger, then resets it.
+    Notes: If both RGB and Color Temperature are enabled for the same light, RGB takes priority.
+
   domain: automation
   input:
     alexa_trigger:
       name: Alexa Trigger (Helper)
       description: >
-        An input_boolean helper exposed to Alexa that turns ON when you say:
-        "Alexa, it's Tucker time".
+        Input boolean exposed to Alexa. Your Alexa routine should Turn ON this helper
+        when you say: "it's tucker time".
       selector:
         entity:
           domain: input_boolean
 
-    tucker_scene:
-      name: Scene to Activate
-      description: The scene that contains your exact light settings for "Tucker time".
-      selector:
-        entity:
-          domain: scene
-
     transition_seconds:
       name: Transition (seconds)
-      description: Optional global transition applied when the scene turns on (if supported by devices).
+      description: Optional transition time for lights (if supported).
       default: 0
       selector:
         number:
@@ -33,6 +27,436 @@ blueprint:
           max: 60
           step: 1
           mode: slider
+
+    # -------- Light 1 --------
+    light_1:
+      name: Light 1
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_1_brightness:
+      name: Light 1 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_1_use_color_temp:
+      name: Light 1 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_1_color_temp:
+      name: Light 1 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_1_use_rgb:
+      name: Light 1 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_1_rgb:
+      name: Light 1 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 2 --------
+    light_2:
+      name: Light 2
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_2_brightness:
+      name: Light 2 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_2_use_color_temp:
+      name: Light 2 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_2_color_temp:
+      name: Light 2 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_2_use_rgb:
+      name: Light 2 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_2_rgb:
+      name: Light 2 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 3 --------
+    light_3:
+      name: Light 3
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_3_brightness:
+      name: Light 3 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_3_use_color_temp:
+      name: Light 3 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_3_color_temp:
+      name: Light 3 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_3_use_rgb:
+      name: Light 3 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_3_rgb:
+      name: Light 3 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 4 --------
+    light_4:
+      name: Light 4
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_4_brightness:
+      name: Light 4 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_4_use_color_temp:
+      name: Light 4 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_4_color_temp:
+      name: Light 4 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_4_use_rgb:
+      name: Light 4 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_4_rgb:
+      name: Light 4 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 5 --------
+    light_5:
+      name: Light 5
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_5_brightness:
+      name: Light 5 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_5_use_color_temp:
+      name: Light 5 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_5_color_temp:
+      name: Light 5 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_5_use_rgb:
+      name: Light 5 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_5_rgb:
+      name: Light 5 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 6 --------
+    light_6:
+      name: Light 6
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_6_brightness:
+      name: Light 6 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_6_use_color_temp:
+      name: Light 6 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_6_color_temp:
+      name: Light 6 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_6_use_rgb:
+      name: Light 6 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_6_rgb:
+      name: Light 6 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 7 --------
+    light_7:
+      name: Light 7
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_7_brightness:
+      name: Light 7 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_7_use_color_temp:
+      name: Light 7 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_7_color_temp:
+      name: Light 7 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_7_use_rgb:
+      name: Light 7 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_7_rgb:
+      name: Light 7 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 8 --------
+    light_8:
+      name: Light 8
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_8_brightness:
+      name: Light 8 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_8_use_color_temp:
+      name: Light 8 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_8_color_temp:
+      name: Light 8 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_8_use_rgb:
+      name: Light 8 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_8_rgb:
+      name: Light 8 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 9 --------
+    light_9:
+      name: Light 9
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_9_brightness:
+      name: Light 9 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_9_use_color_temp:
+      name: Light 9 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_9_color_temp:
+      name: Light 9 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_9_use_rgb:
+      name: Light 9 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_9_rgb:
+      name: Light 9 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
+
+    # -------- Light 10 --------
+    light_10:
+      name: Light 10
+      description: Leave blank if unused
+      default: []
+      selector:
+        entity:
+          domain: light
+    light_10_brightness:
+      name: Light 10 Brightness (0–255)
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 255
+          mode: slider
+    light_10_use_color_temp:
+      name: Light 10 – Use Color Temperature
+      default: false
+      selector:
+        boolean:
+    light_10_color_temp:
+      name: Light 10 Color Temp (mireds, 153–500)
+      description: Only used if "Use Color Temperature" is enabled
+      default: 350
+      selector:
+        number:
+          min: 153
+          max: 500
+          step: 1
+          mode: slider
+    light_10_use_rgb:
+      name: Light 10 – Use RGB (overrides Color Temp if both on)
+      default: false
+      selector:
+        boolean:
+    light_10_rgb:
+      name: Light 10 RGB Color
+      description: Only used if "Use RGB" is enabled
+      default: []
+      selector:
+        color_rgb:
 
 mode: single
 max_exceeded: silent
@@ -42,19 +466,314 @@ trigger:
     entity_id: !input alexa_trigger
     to: "on"
 
-action:
-  - service: scene.turn_on
-    target:
-      entity_id: !input tucker_scene
-    data:
-      transition: !input transition_seconds
+variables:
+  t_seconds: !input transition_seconds
 
-  # Small delay so we don't miss rapid re-triggers
+  l1: !input light_1
+  l1_bri: !input light_1_brightness
+  l1_ct_en: !input light_1_use_color_temp
+  l1_ct: !input light_1_color_temp
+  l1_rgb_en: !input light_1_use_rgb
+  l1_rgb: !input light_1_rgb
+
+  l2: !input light_2
+  l2_bri: !input light_2_brightness
+  l2_ct_en: !input light_2_use_color_temp
+  l2_ct: !input light_2_color_temp
+  l2_rgb_en: !input light_2_use_rgb
+  l2_rgb: !input light_2_rgb
+
+  l3: !input light_3
+  l3_bri: !input light_3_brightness
+  l3_ct_en: !input light_3_use_color_temp
+  l3_ct: !input light_3_color_temp
+  l3_rgb_en: !input light_3_use_rgb
+  l3_rgb: !input light_3_rgb
+
+  l4: !input light_4
+  l4_bri: !input light_4_brightness
+  l4_ct_en: !input light_4_use_color_temp
+  l4_ct: !input light_4_color_temp
+  l4_rgb_en: !input light_4_use_rgb
+  l4_rgb: !input light_4_rgb
+
+  l5: !input light_5
+  l5_bri: !input light_5_brightness
+  l5_ct_en: !input light_5_use_color_temp
+  l5_ct: !input light_5_color_temp
+  l5_rgb_en: !input light_5_use_rgb
+  l5_rgb: !input light_5_rgb
+
+  l6: !input light_6
+  l6_bri: !input light_6_brightness
+  l6_ct_en: !input light_6_use_color_temp
+  l6_ct: !input light_6_color_temp
+  l6_rgb_en: !input light_6_use_rgb
+  l6_rgb: !input light_6_rgb
+
+  l7: !input light_7
+  l7_bri: !input light_7_brightness
+  l7_ct_en: !input light_7_use_color_temp
+  l7_ct: !input light_7_color_temp
+  l7_rgb_en: !input light_7_use_rgb
+  l7_rgb: !input light_7_rgb
+
+  l8: !input light_8
+  l8_bri: !input light_8_brightness
+  l8_ct_en: !input light_8_use_color_temp
+  l8_ct: !input light_8_color_temp
+  l8_rgb_en: !input light_8_use_rgb
+  l8_rgb: !input light_8_rgb
+
+  l9: !input light_9
+  l9_bri: !input light_9_brightness
+  l9_ct_en: !input light_9_use_color_temp
+  l9_ct: !input light_9_color_temp
+  l9_rgb_en: !input light_9_use_rgb
+  l9_rgb: !input light_9_rgb
+
+  l10: !input light_10
+  l10_bri: !input light_10_brightness
+  l10_ct_en: !input light_10_use_color_temp
+  l10_ct: !input light_10_color_temp
+  l10_rgb_en: !input light_10_use_rgb
+  l10_rgb: !input light_10_rgb
+
+action:
+  # ----- Light 1 -----
+  - choose:
+      - conditions: "{{ l1 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l1 }}" }
+            data:
+              brightness: "{{ l1_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l1_rgb_en and (l1_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l1 }}" }
+                    data:
+                      rgb_color: "{{ l1_rgb }}"
+              - conditions: "{{ (not l1_rgb_en) and l1_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l1 }}" }
+                    data:
+                      color_temp: "{{ l1_ct }}"
+
+  # ----- Light 2 -----
+  - choose:
+      - conditions: "{{ l2 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l2 }}" }
+            data:
+              brightness: "{{ l2_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l2_rgb_en and (l2_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l2 }}" }
+                    data:
+                      rgb_color: "{{ l2_rgb }}"
+              - conditions: "{{ (not l2_rgb_en) and l2_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l2 }}" }
+                    data:
+                      color_temp: "{{ l2_ct }}"
+
+  # ----- Light 3 -----
+  - choose:
+      - conditions: "{{ l3 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l3 }}" }
+            data:
+              brightness: "{{ l3_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l3_rgb_en and (l3_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l3 }}" }
+                    data:
+                      rgb_color: "{{ l3_rgb }}"
+              - conditions: "{{ (not l3_rgb_en) and l3_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l3 }}" }
+                    data:
+                      color_temp: "{{ l3_ct }}"
+
+  # ----- Light 4 -----
+  - choose:
+      - conditions: "{{ l4 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l4 }}" }
+            data:
+              brightness: "{{ l4_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l4_rgb_en and (l4_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l4 }}" }
+                    data:
+                      rgb_color: "{{ l4_rgb }}"
+              - conditions: "{{ (not l4_rgb_en) and l4_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l4 }}" }
+                    data:
+                      color_temp: "{{ l4_ct }}"
+
+  # ----- Light 5 -----
+  - choose:
+      - conditions: "{{ l5 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l5 }}" }
+            data:
+              brightness: "{{ l5_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l5_rgb_en and (l5_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l5 }}" }
+                    data:
+                      rgb_color: "{{ l5_rgb }}"
+              - conditions: "{{ (not l5_rgb_en) and l5_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l5 }}" }
+                    data:
+                      color_temp: "{{ l5_ct }}"
+
+  # ----- Light 6 -----
+  - choose:
+      - conditions: "{{ l6 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l6 }}" }
+            data:
+              brightness: "{{ l6_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l6_rgb_en and (l6_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l6 }}" }
+                    data:
+                      rgb_color: "{{ l6_rgb }}"
+              - conditions: "{{ (not l6_rgb_en) and l6_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l6 }}" }
+                    data:
+                      color_temp: "{{ l6_ct }}"
+
+  # ----- Light 7 -----
+  - choose:
+      - conditions: "{{ l7 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l7 }}" }
+            data:
+              brightness: "{{ l7_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l7_rgb_en and (l7_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l7 }}" }
+                    data:
+                      rgb_color: "{{ l7_rgb }}"
+              - conditions: "{{ (not l7_rgb_en) and l7_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l7 }}" }
+                    data:
+                      color_temp: "{{ l7_ct }}"
+
+  # ----- Light 8 -----
+  - choose:
+      - conditions: "{{ l8 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l8 }}" }
+            data:
+              brightness: "{{ l8_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l8_rgb_en and (l8_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l8 }}" }
+                    data:
+                      rgb_color: "{{ l8_rgb }}"
+              - conditions: "{{ (not l8_rgb_en) and l8_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l8 }}" }
+                    data:
+                      color_temp: "{{ l8_ct }}"
+
+  # ----- Light 9 -----
+  - choose:
+      - conditions: "{{ l9 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l9 }}" }
+            data:
+              brightness: "{{ l9_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l9_rgb_en and (l9_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l9 }}" }
+                    data:
+                      rgb_color: "{{ l9_rgb }}"
+              - conditions: "{{ (not l9_rgb_en) and l9_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l9 }}" }
+                    data:
+                      color_temp: "{{ l9_ct }}"
+
+  # ----- Light 10 -----
+  - choose:
+      - conditions: "{{ l10 != [] }}"
+        sequence:
+          - service: light.turn_on
+            target: { entity_id: "{{ l10 }}" }
+            data:
+              brightness: "{{ l10_bri }}"
+              transition: "{{ t_seconds }}"
+          - choose:
+              - conditions: "{{ l10_rgb_en and (l10_rgb | length > 0) }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l10 }}" }
+                    data:
+                      rgb_color: "{{ l10_rgb }}"
+              - conditions: "{{ (not l10_rgb_en) and l10_ct_en }}"
+                sequence:
+                  - service: light.turn_on
+                    target: { entity_id: "{{ l10 }}" }
+                    data:
+                      color_temp: "{{ l10_ct }}"
+
+  # small delay then reset helper
   - delay:
       seconds: 1
 
-  # Reset the helper back to OFF for next time
   - service: input_boolean.turn_off
     target:
       entity_id: !input alexa_trigger
-      
