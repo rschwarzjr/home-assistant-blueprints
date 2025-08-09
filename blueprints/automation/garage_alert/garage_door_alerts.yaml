@@ -129,33 +129,6 @@ blueprint:
           mode: slider
           unit_of_measurement: minutes
 
-variables:
-  # Map sensors to covers
-  sensor_list: !input garage_door_sensors
-  cover_list: !input garage_door_covers
-  cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
-
-  # Delays
-  first_delay: !input first_delay_minutes
-  second_delay: !input second_delay_minutes
-
-  # Toggles (assigned directly — cast with | bool at use sites)
-  send_initial_phone: !input send_initial_phone
-  send_initial_alexa: !input send_initial_alexa
-  send_first_phone:  !input send_first_phone
-  send_first_alexa:  !input send_first_alexa
-  send_second_phone: !input send_second_phone
-  send_second_alexa: !input send_second_alexa
-
-  # Titles/messages as provided
-  title_initial: !input title_initial
-  msg_initial:   !input msg_initial
-  title_first:   !input title_first
-  msg_first:     !input msg_first
-  title_second:  !input title_second
-  msg_second:    !input msg_second
-  close_button_label: !input close_button_label
-
 trigger:
   - platform: state
     entity_id: !input garage_door_sensors
@@ -166,6 +139,30 @@ mode: parallel
 max: 10
 
 action:
+  # Pull all inputs into local variables (safe use of !input here)
+  - variables:
+      sensor_list: !input garage_door_sensors
+      cover_list: !input garage_door_covers
+      cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
+
+      first_delay: !input first_delay_minutes
+      second_delay: !input second_delay_minutes
+
+      send_initial_phone: !input send_initial_phone
+      send_initial_alexa: !input send_initial_alexa
+      send_first_phone:  !input send_first_phone
+      send_first_alexa:  !input send_first_alexa
+      send_second_phone: !input send_second_phone
+      send_second_alexa: !input send_second_alexa
+
+      title_initial: !input title_initial
+      msg_initial:   !input msg_initial
+      title_first:   !input title_first
+      msg_first:     !input msg_first
+      title_second:  !input title_second
+      msg_second:    !input msg_second
+      close_button_label: !input close_button_label
+
   # Identify which door triggered and compute a friendly name
   - variables:
       door_sensor: "{{ trigger.entity_id }}"
