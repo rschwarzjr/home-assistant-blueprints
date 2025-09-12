@@ -1,0 +1,177 @@
+blueprint:
+  name: Laundry Done Alerts v1.1
+  description: >
+    Announces when the washer or dryer finishes.
+    Triggers on event.dryer_notification or event.washer_notification.
+    Announces via selected Alexa devices and (optionally) sends a mobile app push
+    notification to a selected phone.
+  domain: automation
+  author: chatgpt
+  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blueprints/automation/laundry_alerts/laundry_done_alerts_v1_1.yaml
+  homeassistant:
+    min_version: '2023.9'
+
+  input:
+    alexa_targets:
+      name: Alexa targets
+      description: >
+        Select one or more Alexa media_player entities to receive an announcement.
+        (Requires Alexa Media Player integration; uses notify.alexa_media.)
+      selector:
+        entity:
+          domain: media_player
+          multiple: true
+
+    send_phone_notification:
+      name: Send phone push notification?
+      description: >
+        Enable to also send a mobile app push notification to a selected phone.
+      default: true
+      selector:
+        boolean: {}
+
+    phone_device:
+      name: Phone (Mobile App device)
+      description: >
+        Pick the phone device (from the Mobile App integration). The blueprint will
+        try to derive the correct notify service automatically from this device's name.
+        If that fails in your setup, use the override below.
+      default: ""
+      selector:
+        device:
+          integration: mobile_app
+
+    phone_notify_service_override:
+      name: (Optional) Override - exact mobile app notify service
+      description: >
+        If auto-detection fails, enter the full notify service for your phone,
+        e.g. notify.mobile_app_roberts_iphone.
+        Leave blank to use auto-detected service based on the selected device name.
+      default: ""
+      selector:
+        text: {}
+
+    announcement_title:
+      name: Announcement Title
+      description: Title shown on Alexa & notification (optional).
+      default: "Laundry Update"
+      selector:
+        text: {}
+
+    washer_message:
+      name: Washer Finished Message
+      description: Message spoken and sent when the washer finishes.
+      default: "The washing machine is done."
+      selector:
+        text: {}
+
+    dryer_message:
+      name: Dryer Finished Message
+      description: Message spoken and sent when the dryer finishes.
+      default: "The dryer is done."
+      selector:
+        text: {}
+
+    alexa_method:
+      name: Alexa announcement method
+      description: >
+        Choose 'announce' (brief tone + announcement) or 'speak' (TTS only).
+      default: announce
+      selector:
+        select:
+          options:
+            - announce
+            - speak
+          mode: dropdown
+
+mode: parallel
+max: 10
+trace:
+  stored_traces: 25
+
+variables:
+  v_title: !input announcement_title
+  v_washer_msg: !input washer_message
+  v_dryer_msg: !input dryer_message
+  v_alexa_method: !input alexa_method
+
+  # Phone notification handling
+  v_send_phone: !input send_phone_notification
+  v_phone_device: !input phone_device
+  v_phone_service_override: !input phone_notify_service_override
+
+  # Attempt to derive the mobile_app notify service from the selected device name.
+  # This commonly works if your Mobile App service matches a slugified device name.
+  v_phone_service_autodetected: >-
+    {% set d = v_phone_device %}
+    {% if d %}
+      {% set n = device_attr(d, 'name') | string %}
+      {% set slug = n | lower | replace(' ', '_') | replace('-', '_') | regex_replace('[^a-z0-9_]', '') %}
+      {{ 'notify.mobile_app_' ~ slug }}
+    {% else %}
+      {{ '' }}
+    {% endif %}
+
+  v_phone_service_final: >-
+    {{ v_phone_service_override if v_phone_service_override|length > 0 else v_phone_service_autodetected }}
+
+trigger:
+  - platform: event
+    event_type: event.washer_notification
+    id: washer
+  - platform: event
+    event_type: event.dryer_notification
+    id: dryer
+
+condition: []
+
+action:
+  - variables:
+      v_appliance: >-
+        {% if trigger.id == 'washer' %}washer{% elif trigger.id == 'dryer' %}dryer{% else %}unknown{% endif %}
+      v_message: >-
+        {% if trigger.id == 'washer' %}{{ v_washer_msg }}{% elif trigger.id == 'dryer' %}{{ v_dryer_msg }}{% else %}Laundry cycle finished.{% endif %}
+
+  # --- Alexa announcement(s) ---
+  - choose:
+      - conditions: []
+        sequence:
+          - service: notify.alexa_media
+            data:
+              message: "{{ v_message }}"
+              title: "{{ v_title }}"
+              data:
+                type: announce
+                method: "{{ v_alexa_method }}"
+            target:
+              entity_id: !input alexa_targets
+
+  # --- Optional phone notification ---
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ v_send_phone | bool }}"
+        sequence:
+          - choose:
+              # If an explicit override service name was provided, use it
+              - conditions:
+                  - condition: template
+                    value_template: "{{ v_phone_service_final is string and v_phone_service_final|length > 0 }}"
+                sequence:
+                  - service: "{{ v_phone_service_final }}"
+                    data:
+                      title: "{{ v_title }}"
+                      message: "{{ v_message }}"
+            default:
+              # If we can't figure out a service, do nothing rather than fail
+              - service: persistent_notification.create
+                data:
+                  title: "Laundry Done Alerts"
+                  message: >-
+                    Phone notification skipped. Could not determine a valid
+                    mobile app notify service from the selected device.
+                    You can set the 'Override - exact mobile app notify service'
+                    input in the blueprint to fix this.
+
+# Helpful metadata for UI
+icon: mdi:washing-machine
