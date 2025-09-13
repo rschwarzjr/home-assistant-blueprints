@@ -1,5 +1,5 @@
 blueprint:
-  name: Laundry Done Alerts v1.10 (status enum, Alexa toggle)
+  name: Laundry Done Alerts v1.11 (status enum, Alexa toggle)
   description: >
     Announces when the washer or dryer finishes by watching status sensors (enum).
     Flow per appliance:
@@ -159,15 +159,21 @@ variables:
     {{ v_phone_service_override if v_phone_service_override|length > 0
        else v_phone_service_autodetected }}
 
-  # Normalize enums from inputs (lowercase, strip, split)
+  # Bring inputs into variables first (correct usage of !input),
+  # then create normalized/lowercased versions via Jinja.
+  washer_running_in: !input washer_running_state
+  washer_finish_in: !input washer_finish_states
+  dryer_running_in: !input dryer_running_state
+  dryer_finish_in: !input dryer_finish_states
+
   washer_running_lc: >-
-    {{ ( !input washer_running_state ) | string | lower | trim }}
+    {{ (washer_running_in | string | lower | trim) }}
   washer_finish_list_lc: >-
-    {{ ( !input washer_finish_states ) | string | lower | replace(' ', '') | split(',') }}
+    {{ (washer_finish_in | string | lower | replace(' ', '') | split(',')) }}
   dryer_running_lc: >-
-    {{ ( !input dryer_running_state ) | string | lower | trim }}
+    {{ (dryer_running_in | string | lower | trim) }}
   dryer_finish_list_lc: >-
-    {{ ( !input dryer_finish_states ) | string | lower | replace(' ', '') | split(',') }}
+    {{ (dryer_finish_in | string | lower | replace(' ', '') | split(',')) }}
 
   # Expose entity_ids for templates
   washer_status_id: !input washer_status_sensor
