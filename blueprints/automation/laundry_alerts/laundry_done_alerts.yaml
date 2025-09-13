@@ -1,5 +1,5 @@
 blueprint:
-  name: Laundry Done Alerts v1.12 (status enum, Alexa toggle)
+  name: Laundry Done Alerts v1.13 (status enum, Alexa toggle)
   description: >
     Announces when the washer or dryer finishes by watching status sensors (enum).
     Flow per appliance:
@@ -7,6 +7,7 @@ blueprint:
       2) Wait until status is one of the configured finish states
          (defaults: 'end', 'power_off', 'off', 'finished')
       3) Announce (if Alexa Alerts toggle is enabled) and optionally push to phone.
+    Uses restart mode to prevent duplicate alerts if the appliance state flaps.
   domain: automation
   author: chatgpt
   source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blueprints/automation/laundry_alerts/laundry_done_alerts.yaml
@@ -126,8 +127,8 @@ blueprint:
           options: [announce, speak]
           mode: dropdown
 
-mode: parallel
-max: 10
+mode: restart
+max_exceeded: silent
 
 # ------------------------
 # Internal variables
@@ -159,8 +160,7 @@ variables:
     {{ v_phone_service_override if v_phone_service_override|length > 0
        else v_phone_service_autodetected }}
 
-  # Bring inputs into variables first (correct usage of !input),
-  # then create normalized/lowercased versions via Jinja.
+  # Bring inputs into variables first, then normalize
   washer_running_in: !input washer_running_state
   washer_finish_in: !input washer_finish_states
   dryer_running_in: !input dryer_running_state
