@@ -1,5 +1,5 @@
 blueprint:
-  name: Laundry Done Alerts v1.11 (status enum, Alexa toggle)
+  name: Laundry Done Alerts v1.12 (status enum, Alexa toggle)
   description: >
     Announces when the washer or dryer finishes by watching status sensors (enum).
     Flow per appliance:
@@ -167,13 +167,17 @@ variables:
   dryer_finish_in: !input dryer_finish_states
 
   washer_running_lc: >-
-    {{ (washer_running_in | string | lower | trim) }}
+    {{ washer_running_in | string | lower | trim }}
   washer_finish_list_lc: >-
-    {{ (washer_finish_in | string | lower | replace(' ', '') | split(',')) }}
+    {% set s = washer_finish_in | string | lower %}
+    {% set s2 = s | replace(' ', '') %}
+    {{ s2 | regex_findall('[^,]+') }}
   dryer_running_lc: >-
-    {{ (dryer_running_in | string | lower | trim) }}
+    {{ dryer_running_in | string | lower | trim }}
   dryer_finish_list_lc: >-
-    {{ (dryer_finish_in | string | lower | replace(' ', '') | split(',')) }}
+    {% set s = dryer_finish_in | string | lower %}
+    {% set s2 = s | replace(' ', '') %}
+    {{ s2 | regex_findall('[^,]+') }}
 
   # Expose entity_ids for templates
   washer_status_id: !input washer_status_sensor
