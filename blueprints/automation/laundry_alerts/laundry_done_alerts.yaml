@@ -1,10 +1,10 @@
 blueprint:
-  name: Laundry Done Alerts v1.4
+  name: Laundry Done Alerts v1.7 (sensor-based, ISO ETA)
   description: >
-    Announces when the washer or dryer finishes.
-    Triggers on event.dryer_notification or event.washer_notification.
-    Announces via selected Alexa devices and (optionally) sends a mobile app push
-    notification to a selected phone.
+    Announces when the washer or dryer finishes based on status + remaining-time sensors.
+    Triggers when:
+      - status sensor goes to 'off' (debounced), OR
+      - remaining-time sensor is an ISO8601 finish timestamp that is now/past (e.g. 2025-09-13T00:49:00+00:00).
   domain: automation
   author: chatgpt
   source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blueprints/automation/laundry_alerts/laundry_done_alerts.yaml
@@ -12,6 +12,40 @@ blueprint:
     min_version: '2023.9.0'
 
   input:
+    # --- Sensors (required) ---
+    washer_status_sensor:
+      name: Washer current status sensor
+      description: sensor.washer_current_status (becomes 'off' when done)
+      selector:
+        entity:
+          domain: sensor
+
+    washer_remaining_sensor:
+      name: Washer remaining time / finish ETA (ISO8601)
+      description: >
+        sensor.washer_remaining_time — state like 2025-09-13T00:49:00+00:00.
+        We'll trigger when this timestamp is in the past.
+      selector:
+        entity:
+          domain: sensor
+
+    dryer_status_sensor:
+      name: Dryer current status sensor
+      description: sensor.dryer_current_status (becomes 'off' when done)
+      selector:
+        entity:
+          domain: sensor
+
+    dryer_remaining_sensor:
+      name: Dryer remaining time / finish ETA (ISO8601)
+      description: >
+        sensor.dryer_remaining_time — state like 2025-09-13T00:49:00+00:00.
+        We'll trigger when this timestamp is in the past.
+      selector:
+        entity:
+          domain: sensor
+
+    # --- Announce / notify targets ---
     alexa_targets:
       name: Alexa targets
       description: >
@@ -24,8 +58,6 @@ blueprint:
 
     send_phone_notification:
       name: Send phone push notification?
-      description: >
-        Enable to also send a mobile app push notification to a selected phone.
       default: true
       selector:
         boolean: {}
@@ -46,61 +78,55 @@ blueprint:
       description: >
         If auto-detection fails, enter the full notify service for your phone,
         e.g. notify.mobile_app_roberts_iphone.
-        Leave blank to use auto-detected service based on the selected device name.
       default: ""
       selector:
         text: {}
 
+    # --- Messaging ---
     announcement_title:
       name: Announcement Title
-      description: Title shown on Alexa & notification (optional).
       default: "Laundry Update"
       selector:
         text: {}
 
     washer_message:
       name: Washer Finished Message
-      description: Message spoken and sent when the washer finishes.
       default: "The washing machine is done."
       selector:
         text: {}
 
     dryer_message:
       name: Dryer Finished Message
-      description: Message spoken and sent when the dryer finishes.
       default: "The dryer is done."
       selector:
         text: {}
 
     alexa_method:
       name: Alexa announcement method
-      description: >
-        Choose 'announce' (brief tone + announcement) or 'speak' (TTS only).
+      description: "'announce' (tone + announcement) or 'speak' (TTS only)"
       default: announce
       selector:
         select:
-          options:
-            - announce
-            - speak
+          options: [announce, speak]
           mode: dropdown
 
 mode: parallel
 max: 10
-trace:
-  stored_traces: 25
 
+# ------------------------
+# Internal variables
+# ------------------------
 variables:
   v_title: !input announcement_title
   v_washer_msg: !input washer_message
   v_dryer_msg: !input dryer_message
   v_alexa_method: !input alexa_method
 
-  # Phone notification handling
   v_send_phone: !input send_phone_notification
   v_phone_device: !input phone_device
   v_phone_service_override: !input phone_notify_service_override
 
-  # Attempt to derive the mobile_app notify service from the selected device name.
+  # Build a best-guess notify.mobile_app_* service from the device name if no override
   v_phone_service_autodetected: >-
     {% set d = v_phone_device %}
     {% if d %}
@@ -111,41 +137,79 @@ variables:
     {% else %}
       {{ '' }}
     {% endif %}
-
   v_phone_service_final: >-
-    {{ v_phone_service_override if v_phone_service_override | length > 0
+    {{ v_phone_service_override if v_phone_service_override|length > 0
        else v_phone_service_autodetected }}
 
+  # Expose sensor entity_ids (handy for templating)
+  washer_status_id: !input washer_status_sensor
+  washer_remaining_id: !input washer_remaining_sensor
+  dryer_status_id: !input dryer_status_sensor
+  dryer_remaining_id: !input dryer_remaining_sensor
+
+# ------------------------
+# Triggers
+# ------------------------
 trigger:
-  - platform: event
-    event_type: event.washer_notification
-    id: washer
-  - platform: event
-    event_type: event.dryer_notification
-    id: dryer
+  # Washer status becomes 'off'
+  - id: washer_off
+    platform: state
+    entity_id: !input washer_status_sensor
+    to: 'off'
+    for: "00:00:05"
+
+  # Dryer status becomes 'off'
+  - id: dryer_off
+    platform: state
+    entity_id: !input dryer_status_sensor
+    to: 'off'
+    for: "00:00:05"
+
+  # Washer ETA (ISO8601) is in the past
+  - id: washer_eta_due
+    platform: template
+    value_template: >-
+      {% set raw = states(washer_remaining_id) %}
+      {% set dt = as_datetime(raw, none) %}
+      {{ dt is not none and dt <= now() }}
+
+  # Dryer ETA (ISO8601) is in the past
+  - id: dryer_eta_due
+    platform: template
+    value_template: >-
+      {% set raw = states(dryer_remaining_id) %}
+      {% set dt = as_datetime(raw, none) %}
+      {{ dt is not none and dt <= now() }}
 
 condition: []
 
+# ------------------------
+# Actions
+# ------------------------
 action:
   - variables:
       v_appliance: >-
-        {% if trigger.id == 'washer' %}washer{% elif trigger.id == 'dryer' %}
-        dryer{% else %}unknown{% endif %}
+        {% set m = {
+          'washer_off':'washer','washer_eta_due':'washer',
+          'dryer_off':'dryer','dryer_eta_due':'dryer'
+        } %}
+        {{ m.get(trigger.id, 'unknown') }}
       v_message: >-
-        {% if trigger.id == 'washer' %}{{ v_washer_msg }}{% elif trigger.id == 'dryer' %}
-        {{ v_dryer_msg }}{% else %}Laundry cycle finished.{% endif %}
+        {% if v_appliance == 'washer' %}{{ v_washer_msg }}
+        {% elif v_appliance == 'dryer' %}{{ v_dryer_msg }}
+        {% else %}Laundry cycle finished.{% endif %}
 
-  # --- Alexa announcement(s) via notify.alexa_media ---
+  # Alexa announcement(s) via notify.alexa_media
   - service: notify.alexa_media
     data:
+      target: !input alexa_targets
       message: "{{ v_message }}"
       title: "{{ v_title }}"
       data:
         type: announce
         method: "{{ v_alexa_method }}"
-        target: !input alexa_targets
 
-  # --- Optional phone notification ---
+  # Optional phone push
   - choose:
       - conditions:
           - condition: template
@@ -169,5 +233,4 @@ action:
                   message: >-
                     Phone notification skipped. Could not determine a valid
                     mobile app notify service from the selected device.
-                    You can set the 'Override - exact mobile app notify service'
-                    input in the blueprint to fix this.
+                    Set the 'Override - exact mobile app notify service' input if needed.
