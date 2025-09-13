@@ -1,5 +1,5 @@
 blueprint:
-  name: Laundry Done Alerts v1.2
+  name: Laundry Done Alerts v1.4
   description: >
     Announces when the washer or dryer finishes.
     Triggers on event.dryer_notification or event.washer_notification.
@@ -101,7 +101,6 @@ variables:
   v_phone_service_override: !input phone_notify_service_override
 
   # Attempt to derive the mobile_app notify service from the selected device name.
-  # This commonly works if your Mobile App service matches a slugified device name.
   v_phone_service_autodetected: >-
     {% set d = v_phone_device %}
     {% if d %}
@@ -136,19 +135,15 @@ action:
         {% if trigger.id == 'washer' %}{{ v_washer_msg }}{% elif trigger.id == 'dryer' %}
         {{ v_dryer_msg }}{% else %}Laundry cycle finished.{% endif %}
 
-  # --- Alexa announcement(s) ---
-  - choose:
-      - conditions: []
-        sequence:
-          - service: notify.alexa_media
-            data:
-              message: "{{ v_message }}"
-              title: "{{ v_title }}"
-              data:
-                type: announce
-                method: "{{ v_alexa_method }}"
-            target:
-              entity_id: !input alexa_targets
+  # --- Alexa announcement(s) via notify.alexa_media ---
+  - service: notify.alexa_media
+    data:
+      message: "{{ v_message }}"
+      title: "{{ v_title }}"
+      data:
+        type: announce
+        method: "{{ v_alexa_method }}"
+        target: !input alexa_targets
 
   # --- Optional phone notification ---
   - choose:
@@ -176,6 +171,3 @@ action:
                     mobile app notify service from the selected device.
                     You can set the 'Override - exact mobile app notify service'
                     input in the blueprint to fix this.
-
-# Helpful metadata for UI
-icon: mdi:washing-machine
