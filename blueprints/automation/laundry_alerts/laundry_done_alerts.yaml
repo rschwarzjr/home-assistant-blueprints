@@ -1,13 +1,13 @@
 blueprint:
-  name: Laundry Done Alerts v1.13 (status enum, Alexa toggle)
+  name: Laundry Done Alerts v1.14 (status enum, Alexa toggle)
   description: >
     Announces when the washer or dryer finishes by watching status sensors (enum).
     Flow per appliance:
-      1) Detect status -> 'running'
+      1) Trigger only when status -> 'running'
       2) Wait until status is one of the configured finish states
          (defaults: 'end', 'power_off', 'off', 'finished')
       3) Announce (if Alexa Alerts toggle is enabled) and optionally push to phone.
-    Uses restart mode to prevent duplicate alerts if the appliance state flaps.
+    Uses restart mode; triggers are limited to 'running' to avoid canceling waits mid-cycle.
   domain: automation
   author: chatgpt
   source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blueprints/automation/laundry_alerts/laundry_done_alerts.yaml
@@ -18,21 +18,21 @@ blueprint:
     # --- Status sensors (required) ---
     washer_status_sensor:
       name: Washer current status sensor
-      description: sensor.washer_current_status (enum; includes 'running' and finish state)
+      description: sensor.washer_current_status (enum; includes 'running' and a finish state)
       selector:
         entity:
           domain: sensor
 
     dryer_status_sensor:
       name: Dryer current status sensor
-      description: sensor.dryer_current_status (enum; includes 'running' and finish state)
+      description: sensor.dryer_current_status (enum; includes 'running' and a finish state)
       selector:
         entity:
           domain: sensor
 
-    # --- Expected enum values (customizable; case-insensitive) ---
+    # --- Expected enum values (customizable; case-sensitive to your device) ---
     washer_running_state:
-      name: Washer "running" state
+      name: Washer "running" state (exact)
       default: "running"
       selector:
         text: {}
@@ -45,7 +45,7 @@ blueprint:
         text: {}
 
     dryer_running_state:
-      name: Dryer "running" state
+      name: Dryer "running" state (exact)
       default: "running"
       selector:
         text: {}
@@ -160,7 +160,7 @@ variables:
     {{ v_phone_service_override if v_phone_service_override|length > 0
        else v_phone_service_autodetected }}
 
-  # Bring inputs into variables first, then normalize
+  # Bring inputs into variables first, then normalize for comparisons
   washer_running_in: !input washer_running_state
   washer_finish_in: !input washer_finish_states
   dryer_running_in: !input dryer_running_state
@@ -184,16 +184,18 @@ variables:
   dryer_status_id: !input dryer_status_sensor
 
 # ------------------------
-# Triggers: react to any status change, then branch
+# Triggers: ONLY when entering "running"
 # ------------------------
 trigger:
-  - id: washer_any
+  - id: washer_start
     platform: state
     entity_id: !input washer_status_sensor
+    to: !input washer_running_state
 
-  - id: dryer_any
+  - id: dryer_start
     platform: state
     entity_id: !input dryer_status_sensor
+    to: !input dryer_running_state
 
 condition: []
 
@@ -211,8 +213,7 @@ action:
       # --- Washer path ---
       - conditions:
           - condition: template
-            value_template: >-
-              {{ trig_entity == washer_status_id and trig_new_lc == washer_running_lc }}
+            value_template: "{{ trig_entity == washer_status_id and trig_new_lc == washer_running_lc }}"
         sequence:
           # Wait until washer state is in finish list (case-insensitive)
           - wait_template: >-
@@ -264,8 +265,7 @@ action:
       # --- Dryer path ---
       - conditions:
           - condition: template
-            value_template: >-
-              {{ trig_entity == dryer_status_id and trig_new_lc == dryer_running_lc }}
+            value_template: "{{ trig_entity == dryer_status_id and trig_new_lc == dryer_running_lc }}"
         sequence:
           # Wait until dryer state is in finish list (case-insensitive)
           - wait_template: >-
