@@ -1,15 +1,15 @@
 blueprint:
-  name: Laundry Done Alerts v1.1
+  name: Laundry Done Alerts v1.2
   description: >
     Announces when the washer or dryer finishes.
-    Triggers on event.washer_notification or event.dryer_notification.
+    Triggers on event.dryer_notification or event.washer_notification.
     Announces via selected Alexa devices and (optionally) sends a mobile app push
     notification to a selected phone.
   domain: automation
   author: chatgpt
   source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blueprints/automation/laundry_alerts/laundry_done_alerts.yaml
   homeassistant:
-    min_version: '2023.9'
+    min_version: '2023.9.0'
 
   input:
     alexa_targets:
@@ -44,9 +44,9 @@ blueprint:
     phone_notify_service_override:
       name: (Optional) Override - exact mobile app notify service
       description: >
-        If auto‑detection fails, enter the full notify service for your phone,
+        If auto-detection fails, enter the full notify service for your phone,
         e.g. notify.mobile_app_roberts_iphone.
-        Leave blank to use auto‑detected service based on the selected device name.
+        Leave blank to use auto-detected service based on the selected device name.
       default: ""
       selector:
         text: {}
@@ -157,7 +157,6 @@ action:
             value_template: "{{ v_send_phone | bool }}"
         sequence:
           - choose:
-              # If an explicit override service name was provided, use it
               - conditions:
                   - condition: template
                     value_template: >
@@ -169,7 +168,6 @@ action:
                       title: "{{ v_title }}"
                       message: "{{ v_message }}"
             default:
-              # If we can't figure out a service, do nothing rather than fail
               - service: persistent_notification.create
                 data:
                   title: "Laundry Done Alerts"
