@@ -2,12 +2,12 @@ blueprint:
   name: Laundry Done Alerts v1.1
   description: >
     Announces when the washer or dryer finishes.
-    Triggers on event.dryer_notification or event.washer_notification.
+    Triggers on event.washer_notification or event.dryer_notification.
     Announces via selected Alexa devices and (optionally) sends a mobile app push
     notification to a selected phone.
   domain: automation
   author: chatgpt
-  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blueprints/automation/laundry_alerts/laundry_done_alerts_v1_1.yaml
+  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blueprints/automation/laundry_alerts/laundry_done_alerts.yaml
   homeassistant:
     min_version: '2023.9'
 
@@ -44,9 +44,9 @@ blueprint:
     phone_notify_service_override:
       name: (Optional) Override - exact mobile app notify service
       description: >
-        If auto-detection fails, enter the full notify service for your phone,
+        If auto‑detection fails, enter the full notify service for your phone,
         e.g. notify.mobile_app_roberts_iphone.
-        Leave blank to use auto-detected service based on the selected device name.
+        Leave blank to use auto‑detected service based on the selected device name.
       default: ""
       selector:
         text: {}
@@ -106,14 +106,16 @@ variables:
     {% set d = v_phone_device %}
     {% if d %}
       {% set n = device_attr(d, 'name') | string %}
-      {% set slug = n | lower | replace(' ', '_') | replace('-', '_') | regex_replace('[^a-z0-9_]', '') %}
+      {% set slug = n | lower | replace(' ', '_') | replace('-', '_')
+                      | regex_replace('[^a-z0-9_]', '') %}
       {{ 'notify.mobile_app_' ~ slug }}
     {% else %}
       {{ '' }}
     {% endif %}
 
   v_phone_service_final: >-
-    {{ v_phone_service_override if v_phone_service_override|length > 0 else v_phone_service_autodetected }}
+    {{ v_phone_service_override if v_phone_service_override | length > 0
+       else v_phone_service_autodetected }}
 
 trigger:
   - platform: event
@@ -128,9 +130,11 @@ condition: []
 action:
   - variables:
       v_appliance: >-
-        {% if trigger.id == 'washer' %}washer{% elif trigger.id == 'dryer' %}dryer{% else %}unknown{% endif %}
+        {% if trigger.id == 'washer' %}washer{% elif trigger.id == 'dryer' %}
+        dryer{% else %}unknown{% endif %}
       v_message: >-
-        {% if trigger.id == 'washer' %}{{ v_washer_msg }}{% elif trigger.id == 'dryer' %}{{ v_dryer_msg }}{% else %}Laundry cycle finished.{% endif %}
+        {% if trigger.id == 'washer' %}{{ v_washer_msg }}{% elif trigger.id == 'dryer' %}
+        {{ v_dryer_msg }}{% else %}Laundry cycle finished.{% endif %}
 
   # --- Alexa announcement(s) ---
   - choose:
@@ -156,7 +160,9 @@ action:
               # If an explicit override service name was provided, use it
               - conditions:
                   - condition: template
-                    value_template: "{{ v_phone_service_final is string and v_phone_service_final|length > 0 }}"
+                    value_template: >
+                      {{ v_phone_service_final is string and
+                         v_phone_service_final | length > 0 }}
                 sequence:
                   - service: "{{ v_phone_service_final }}"
                     data:
