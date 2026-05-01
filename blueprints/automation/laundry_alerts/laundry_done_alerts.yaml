@@ -1,62 +1,99 @@
 blueprint:
-  name: Laundry Done Alerts v1.15 (status enum, Alexa toggle, de-duped)
+  name: Laundry Done Alerts v1.16 (status enum, parallel, cycle locks)
   description: >
-    Announces when the washer or dryer finishes by watching status sensors (enum).
-    Triggers only when status becomes 'running', then waits until a finish state.
-    Uses queued mode so washer & dryer runs don't cancel each other; includes debounce to avoid duplicates.
+    Announces when the washer or dryer finishes by watching current-status enum sensors.
+    Each appliance is tracked after it enters the running state, then alerts once when that
+    same appliance reaches a finish state. Uses parallel mode with per-appliance input_boolean
+    cycle locks so washer and dryer can run at the same time without duplicate alerts.
   domain: automation
   author: chatgpt
-  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blueprints/automation/laundry_alerts/laundry_done_alerts.yaml
+  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/laundry_alerts/laundry_done_alerts.yaml
   homeassistant:
     min_version: '2023.9.0'
 
   input:
-    # --- Status sensors (required) ---
     washer_status_sensor:
       name: Washer current status sensor
-      description: sensor.washer_current_status (enum; includes 'running' and a finish state)
+      description: sensor.washer_current_status enum sensor.
       selector:
         entity:
           domain: sensor
 
     dryer_status_sensor:
       name: Dryer current status sensor
-      description: sensor.dryer_current_status (enum; includes 'running' and a finish state)
+      description: sensor.dryer_current_status enum sensor.
       selector:
         entity:
           domain: sensor
 
-    # --- Expected enum values (customizable; case-insensitive) ---
+    washer_cycle_lock:
+      name: Washer cycle lock helper
+      description: >
+        Input boolean used internally to prevent duplicate washer alerts.
+        Create one helper such as input_boolean.washer_laundry_cycle_active.
+      selector:
+        entity:
+          domain: input_boolean
+
+    dryer_cycle_lock:
+      name: Dryer cycle lock helper
+      description: >
+        Input boolean used internally to prevent duplicate dryer alerts.
+        Create one helper such as input_boolean.dryer_laundry_cycle_active.
+      selector:
+        entity:
+          domain: input_boolean
+
     washer_running_state:
-      name: Washer "running" state
+      name: Washer running state
       default: "running"
       selector:
         text: {}
 
     washer_finish_states:
-      name: Washer finish states (comma-separated)
-      description: Any of these will be treated as finished.
+      name: Washer finish states
+      description: Comma-separated states that mean the washer cycle is finished.
       default: "end,power_off,off,finished"
       selector:
         text: {}
 
     dryer_running_state:
-      name: Dryer "running" state
+      name: Dryer running state
       default: "running"
       selector:
         text: {}
 
     dryer_finish_states:
-      name: Dryer finish states (comma-separated)
-      description: Any of these will be treated as finished.
+      name: Dryer finish states
+      description: Comma-separated states that mean the dryer cycle is finished.
       default: "end,power_off,off,finished"
       selector:
         text: {}
 
-    # --- Alexa / notifications ---
+    start_debounce:
+      name: Running-state debounce
+      description: Status must remain running for this long before tracking starts.
+      default: "00:00:10"
+      selector:
+        duration: {}
+
+    finish_debounce:
+      name: Finish-state debounce
+      description: Status must remain in a finish state for this long before alerting.
+      default: "00:00:10"
+      selector:
+        duration: {}
+
+    cycle_timeout:
+      name: Cycle tracking timeout
+      description: Stop waiting after this long if no finish state is detected.
+      default: "08:00:00"
+      selector:
+        duration: {}
+
     enable_alexa_alerts:
-      name: Alexa Alerts (toggle)
-      description: Enable/disable Alexa announcements without editing the automation.
+      name: Alexa Alerts
+      description: Enable or disable Alexa announcements without editing the automation.
       default: true
       selector:
         boolean: {}
@@ -64,73 +101,71 @@ blueprint:
     alexa_targets:
       name: Alexa targets
       description: >
-        One or more Alexa media_player entities to receive an announcement
-        (Alexa Media Player integration; uses notify.alexa_media).
+        One or more Alexa media_player entities to receive an announcement.
+        Requires the Alexa Media Player integration and notify.alexa_media service.
       selector:
         entity:
           domain: media_player
           multiple: true
 
     send_phone_notification:
-      name: Send phone push notification?
+      name: Send phone push notification
       default: true
       selector:
         boolean: {}
 
     phone_device:
-      name: Phone (Mobile App device)
+      name: Phone Mobile App device
       description: >
-        Pick your phone device (Mobile App integration). We'll try to guess the
-        notify service from the device name unless you set an override below.
+        Pick your phone device from the Mobile App integration. The blueprint will try
+        to derive notify.mobile_app_* from the device name unless an override is set.
       default: ""
       selector:
         device:
           integration: mobile_app
 
     phone_notify_service_override:
-      name: (Optional) Override - exact mobile app notify service
+      name: Optional manual phone notify service
       description: >
-        If auto-detection fails, paste your full service, e.g. notify.mobile_app_roberts_iphone.
+        Exact notify service to use if auto-detection fails, for example
+        notify.mobile_app_roberts_iphone.
       default: ""
       selector:
         text: {}
 
-    # --- Messaging ---
     announcement_title:
-      name: Announcement Title
+      name: Announcement title
       default: "Laundry Update"
       selector:
         text: {}
 
     washer_message:
-      name: Washer Finished Message
+      name: Washer finished message
       default: "The washing machine is done."
       selector:
         text: {}
 
     dryer_message:
-      name: Dryer Finished Message
+      name: Dryer finished message
       default: "The dryer is done."
       selector:
         text: {}
 
     alexa_method:
       name: Alexa announcement method
-      description: "'announce' (tone + announcement) or 'speak' (TTS only)"
+      description: announce plays the Alexa announcement tone; speak uses TTS only.
       default: announce
       selector:
         select:
-          options: [announce, speak]
+          options:
+            - announce
+            - speak
           mode: dropdown
 
-# Queued so washer & dryer runs don't cancel each other; small queue to be safe.
-mode: queued
-max: 4
+mode: parallel
+max: 6
 max_exceeded: silent
 
-# ------------------------
-# Internal variables
-# ------------------------
 variables:
   v_title: !input announcement_title
   v_washer_msg: !input washer_message
@@ -138,178 +173,150 @@ variables:
   v_alexa_method: !input alexa_method
 
   v_enable_alexa: !input enable_alexa_alerts
-
   v_send_phone: !input send_phone_notification
   v_phone_device: !input phone_device
   v_phone_service_override: !input phone_notify_service_override
 
-  # Try to guess notify.mobile_app_* from device name if no override
   v_phone_service_autodetected: >-
     {% set d = v_phone_device %}
     {% if d %}
       {% set n = device_attr(d, 'name') | string %}
       {% set slug = n | lower | replace(' ', '_') | replace('-', '_')
-                      | regex_replace('[^a-z0-9_]', '') %}
+                    | regex_replace('[^a-z0-9_]', '') %}
       {{ 'notify.mobile_app_' ~ slug }}
     {% else %}
       {{ '' }}
     {% endif %}
   v_phone_service_final: >-
-    {{ v_phone_service_override if v_phone_service_override|length > 0
+    {{ v_phone_service_override if v_phone_service_override | length > 0
        else v_phone_service_autodetected }}
 
-  # Bring inputs into variables first, then normalize for comparisons
+  washer_status_id: !input washer_status_sensor
+  dryer_status_id: !input dryer_status_sensor
+  washer_lock_id: !input washer_cycle_lock
+  dryer_lock_id: !input dryer_cycle_lock
+
   washer_running_in: !input washer_running_state
-  washer_finish_in: !input washer_finish_states
   dryer_running_in: !input dryer_running_state
+  washer_finish_in: !input washer_finish_states
   dryer_finish_in: !input dryer_finish_states
 
   washer_running_lc: >-
     {{ washer_running_in | string | lower | trim }}
-  washer_finish_list_lc: >-
-    {% set s = washer_finish_in | string | lower %}
-    {% set s2 = s | replace(' ', '') %}
-    {{ s2 | regex_findall('[^,]+') }}
   dryer_running_lc: >-
     {{ dryer_running_in | string | lower | trim }}
-  dryer_finish_list_lc: >-
-    {% set s = dryer_finish_in | string | lower %}
-    {% set s2 = s | replace(' ', '') %}
-    {{ s2 | regex_findall('[^,]+') }}
+  washer_finish_csv_lc: >-
+    {{ washer_finish_in | string | lower | regex_replace('\s+', '') }}
+  dryer_finish_csv_lc: >-
+    {{ dryer_finish_in | string | lower | regex_replace('\s+', '') }}
 
-  # Expose entity_ids for templates
-  washer_status_id: !input washer_status_sensor
-  dryer_status_id: !input dryer_status_sensor
-
-# ------------------------
-# Triggers: ONLY when entering "running" (debounced)
-# ------------------------
 trigger:
   - id: washer_start
     platform: state
     entity_id: !input washer_status_sensor
     to: !input washer_running_state
-    for: "00:00:10"  # debounce start
+    for: !input start_debounce
 
   - id: dryer_start
     platform: state
     entity_id: !input dryer_status_sensor
     to: !input dryer_running_state
-    for: "00:00:10"  # debounce start
+    for: !input start_debounce
 
 condition: []
 
-# ------------------------
-# Actions
-# ------------------------
 action:
   - variables:
-      trig_entity: >-
-        {{ trigger.to_state.entity_id if trigger is defined else '' }}
-      trig_new_lc: >-
-        {{ (trigger.to_state.state | string | lower | trim) if trigger is defined else '' }}
+      status_id: >-
+        {{ washer_status_id if trigger.id == 'washer_start' else dryer_status_id }}
+      cycle_lock_id: >-
+        {{ washer_lock_id if trigger.id == 'washer_start' else dryer_lock_id }}
+      finish_csv_lc: >-
+        {{ washer_finish_csv_lc if trigger.id == 'washer_start' else dryer_finish_csv_lc }}
+      message_text: >-
+        {{ v_washer_msg if trigger.id == 'washer_start' else v_dryer_msg }}
+      trigger_from_lc: >-
+        {{ trigger.from_state.state | string | lower | trim if trigger.from_state is not none else '' }}
+      reset_csv_lc: >-
+        {{ (washer_finish_csv_lc if trigger.id == 'washer_start' else dryer_finish_csv_lc) ~ ',initial,unknown,unavailable' }}
 
   - choose:
-      # --- Washer path ---
       - conditions:
           - condition: template
-            value_template: "{{ trig_entity == washer_status_id and trig_new_lc == washer_running_lc }}"
+            value_template: >-
+              {{ is_state(cycle_lock_id, 'on')
+                 and trigger_from_lc not in (reset_csv_lc | regex_findall('[^,]+')) }}
         sequence:
-          # Wait until washer state is in finish list (case-insensitive)
-          - wait_template: >-
-              {% set cur = states(washer_status_id) | string | lower | trim %}
-              {{ cur in washer_finish_list_lc }}
-            timeout: "08:00:00"
-            continue_on_timeout: false
+          - stop: "This appliance cycle is already being tracked."
 
-          # Alexa announcement (toggle-enabled)
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ v_enable_alexa | bool }}"
-                sequence:
-                  - service: notify.alexa_media
-                    data:
-                      target: !input alexa_targets
-                      message: "{{ v_washer_msg }}"
-                      title: "{{ v_title }}"
-                      data:
-                        type: announce
-                        method: "{{ v_alexa_method }}"
+  - service: input_boolean.turn_on
+    target:
+      entity_id: "{{ cycle_lock_id }}"
 
-          # Optional phone push
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ v_send_phone | bool }}"
-                sequence:
-                  - choose:
-                      - conditions:
-                          - condition: template
-                            value_template: >
-                              {{ v_phone_service_final is string and v_phone_service_final|length > 0 }}
-                        sequence:
-                          - service: "{{ v_phone_service_final }}"
-                            data:
-                              title: "{{ v_title }}"
-                              message: "{{ v_washer_msg }}"
-                    default:
-                      - service: persistent_notification.create
-                        data:
-                          title: "Laundry Done Alerts"
-                          message: >-
-                            Phone notification skipped. Could not determine a valid
-                            mobile app notify service from the selected device.
-                            Set the 'Override - exact mobile app notify service' input if needed.
+  - repeat:
+      sequence:
+        - wait_template: >-
+            {% set cur = states(status_id) | string | lower | trim %}
+            {{ cur in (finish_csv_lc | regex_findall('[^,]+')) }}
+          timeout: !input cycle_timeout
+          continue_on_timeout: true
 
-      # --- Dryer path ---
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ not wait.completed }}"
+              sequence:
+                - service: input_boolean.turn_off
+                  target:
+                    entity_id: "{{ cycle_lock_id }}"
+                - stop: "Timed out before a finish state was detected."
+
+        - delay: !input finish_debounce
+
+      until:
+        - condition: template
+          value_template: >-
+            {% set cur = states(status_id) | string | lower | trim %}
+            {{ cur in (finish_csv_lc | regex_findall('[^,]+')) }}
+
+  - service: input_boolean.turn_off
+    target:
+      entity_id: "{{ cycle_lock_id }}"
+
+  - choose:
       - conditions:
           - condition: template
-            value_template: "{{ trig_entity == dryer_status_id and trig_new_lc == dryer_running_lc }}"
+            value_template: "{{ v_enable_alexa | bool }}"
         sequence:
-          # Wait until dryer state is in finish list (case-insensitive)
-          - wait_template: >-
-              {% set cur = states(dryer_status_id) | string | lower | trim %}
-              {{ cur in dryer_finish_list_lc }}
-            timeout: "08:00:00"
-            continue_on_timeout: false
+          - service: notify.alexa_media
+            data:
+              target: !input alexa_targets
+              message: "{{ message_text }}"
+              title: "{{ v_title }}"
+              data:
+                type: announce
+                method: "{{ v_alexa_method }}"
 
-          # Alexa announcement (toggle-enabled)
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ v_send_phone | bool }}"
+        sequence:
           - choose:
               - conditions:
                   - condition: template
-                    value_template: "{{ v_enable_alexa | bool }}"
+                    value_template: >-
+                      {{ v_phone_service_final is string and v_phone_service_final | length > 0 }}
                 sequence:
-                  - service: notify.alexa_media
+                  - service: "{{ v_phone_service_final }}"
                     data:
-                      target: !input alexa_targets
-                      message: "{{ v_dryer_msg }}"
                       title: "{{ v_title }}"
-                      data:
-                        type: announce
-                        method: "{{ v_alexa_method }}"
-
-          # Optional phone push
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ v_send_phone | bool }}"
-                sequence:
-                  - choose:
-                      - conditions:
-                          - condition: template
-                            value_template: >
-                              {{ v_phone_service_final is string and v_phone_service_final|length > 0 }}
-                        sequence:
-                          - service: "{{ v_phone_service_final }}"
-                            data:
-                              title: "{{ v_title }}"
-                              message: "{{ v_dryer_msg }}"
-                    default:
-                      - service: persistent_notification.create
-                        data:
-                          title: "Laundry Done Alerts"
-                          message: >-
-                            Phone notification skipped. Could not determine a valid
-                            mobile app notify service from the selected device.
-                            Set the 'Override - exact mobile app notify service' input if needed.
+                      message: "{{ message_text }}"
+            default:
+              - service: persistent_notification.create
+                data:
+                  title: "Laundry Done Alerts"
+                  message: >-
+                    Phone notification skipped. Could not determine a valid
+                    mobile app notify service from the selected device. Set the
+                    manual phone notify service override if needed.
