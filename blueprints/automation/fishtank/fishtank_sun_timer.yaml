@@ -1,10 +1,10 @@
 # ========================================
 # Fish Tank Sun Timer Blueprint
-# Version: 1.0.2
+# Version: 1.0.3
 # ========================================
 
 blueprint:
-  name: Fish Tank Sun Timer (per outlet) v1.0.2
+  name: Fish Tank Sun Timer (per outlet) v1.0.3
   description: >
     Turn an ESPHome outlet on at sunrise and off at sunset, with optional per-outlet
     weekday on-offset and an optional separate weekend on-offset. Create one automation
