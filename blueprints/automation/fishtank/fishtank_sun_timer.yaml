@@ -1,10 +1,10 @@
 # ========================================
 # Fish Tank Sun Timer Blueprint
-# Version: 1.0.1
+# Version: 1.0.2
 # ========================================
 
 blueprint:
-  name: Fish Tank Sun Timer (per outlet) v1.0.1
+  name: Fish Tank Sun Timer (per outlet) v1.0.2
   description: >
     Turn an ESPHome outlet on at sunrise and off at sunset, with optional per-outlet
     weekday on-offset and an optional separate weekend on-offset. Create one automation
@@ -31,8 +31,34 @@ blueprint:
       description: Positive delays ON, negative turns ON before sunrise. Default is 0.
       default: "00:00:00"
       selector:
-        duration:
-          enable_day: false
+        select:
+          mode: dropdown
+          options:
+            - "-12:00:00"
+            - "-11:00:00"
+            - "-10:00:00"
+            - "-09:00:00"
+            - "-08:00:00"
+            - "-07:00:00"
+            - "-06:00:00"
+            - "-05:00:00"
+            - "-04:00:00"
+            - "-03:00:00"
+            - "-02:00:00"
+            - "-01:00:00"
+            - "00:00:00"
+            - "01:00:00"
+            - "02:00:00"
+            - "03:00:00"
+            - "04:00:00"
+            - "05:00:00"
+            - "06:00:00"
+            - "07:00:00"
+            - "08:00:00"
+            - "09:00:00"
+            - "10:00:00"
+            - "11:00:00"
+            - "12:00:00"
 
     weekend_offset_enabled:
       name: Use a different weekend ON offset?
@@ -47,6 +73,7 @@ blueprint:
       default: "00:00:00"
       selector:
         select:
+          mode: dropdown
           options:
             - "-12:00:00"
             - "-11:00:00"
