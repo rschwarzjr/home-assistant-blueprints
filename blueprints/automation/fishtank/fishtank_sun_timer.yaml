@@ -1,16 +1,16 @@
 # ========================================
 # Fish Tank Sun Timer Blueprint
-# Version: 1.0.0
+# Version: 1.0.1
 # ========================================
 
 blueprint:
-  name: Fish Tank Sun Timer (per outlet) v1.0.0
+  name: Fish Tank Sun Timer (per outlet) v1.0.1
   description: >
     Turn an ESPHome outlet on at sunrise and off at sunset, with optional per-outlet
     weekday on-offset and an optional separate weekend on-offset. Create one automation
     per fish tank/outlet so each can have its own schedule and friendly name.
   domain: automation
-  source_url: https://github.com/youruser/yourrepo/blob/main/blueprints/automation/fishtank_sun_timer.yaml
+  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/fishtank/fishtank_sun_timer.yaml
   input:
     outlet_entity:
       name: ESPHome Outlet (switch)
@@ -51,15 +51,15 @@ blueprint:
             - "-12:00:00"
             - "-11:00:00"
             - "-10:00:00"
-            - "-9:00:00"
-            - "-8:00:00"
-            - "-7:00:00"
-            - "-6:00:00"
-            - "-5:00:00"
-            - "-4:00:00"
-            - "-3:00:00"
-            - "-2:00:00"
-            - "-1:00:00"
+            - "-09:00:00"
+            - "-08:00:00"
+            - "-07:00:00"
+            - "-06:00:00"
+            - "-05:00:00"
+            - "-04:00:00"
+            - "-03:00:00"
+            - "-02:00:00"
+            - "-01:00:00"
             - "00:00:00"
             - "01:00:00"
             - "02:00:00"
@@ -138,7 +138,7 @@ action:
             target:
               entity_id: "{{ v_outlet }}"
 
-      # Weekday ON path (Mon–Fri, OR Sat/Sun when weekend offset is disabled)
+      # Weekday ON path (Mon-Fri, OR Sat/Sun when weekend offset is disabled)
       - conditions:
           - condition: trigger
             id: weekday_on
@@ -176,9 +176,3 @@ action:
             service: switch.turn_off
             target:
               entity_id: "{{ v_outlet }}"
-
-  # Nice-to-have: drop a friendly label into trace/logs
-  - alias: "Set log/trace name"
-    variables:
-      _trace_name: "{{ v_name }}"
-      
