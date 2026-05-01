@@ -1,5 +1,5 @@
 blueprint:
-  name: Mirror Light Sync v1.0.2
+  name: Mirror Light Sync v1.0.3
   description: >
     Keep a mirror light (ESPHome smart outlet) synced with a closet light switch.
     When the closet light is ON at any brightness, the outlet turns ON. When the
