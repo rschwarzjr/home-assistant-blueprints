@@ -1,5 +1,5 @@
 blueprint:
-  name: Tucker Time Lighting (On/Off Lists v1.7)
+  name: Tucker Time Lighting (On/Off Lists v1.8)
   description: >
     Say "Alexa, it's Tucker time" to turn ON one list of lights to a shared
     brightness and turn OFF a separate list of lights. Triggered by an
