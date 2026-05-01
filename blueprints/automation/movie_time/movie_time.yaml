@@ -1,5 +1,5 @@
 blueprint:
-  name: Movie Time v1.0 — TV Lighting Preset
+  name: Movie Time v1.1 — TV Lighting Preset
   description: >
     Sets lighting for watching TV: two selected lights are set to specific
     brightness percentages and a third selected light is turned off. This
