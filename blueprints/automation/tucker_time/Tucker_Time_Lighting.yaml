@@ -1,0 +1,111 @@
+blueprint:
+  name: Tucker Time Lighting (On/Off Lists v1.7)
+  description: >
+    Say "Alexa, it's Tucker time" to turn ON one list of lights to a shared
+    brightness and turn OFF a separate list of lights. Triggered by an
+    input_boolean helper exposed to Alexa, then resets the helper automatically.
+
+  domain: automation
+
+  homeassistant:
+    min_version: "2024.6.0"
+
+  input:
+    alexa_trigger:
+      name: Alexa Trigger Helper
+      description: >
+        Input boolean exposed to Alexa. Your Alexa routine should turn ON this
+        helper when you say: "it's tucker time".
+      selector:
+        entity:
+          domain: input_boolean
+
+    lights_to_turn_on:
+      name: Lights to TURN ON
+      icon: mdi:lightbulb-on
+      input:
+        lights_on:
+          name: Lights
+          description: Select any lights that should turn on.
+          default: []
+          selector:
+            entity:
+              domain: light
+              multiple: true
+
+        on_brightness:
+          name: Brightness
+          description: Brightness applied to all selected lights.
+          default: 200
+          selector:
+            number:
+              min: 1
+              max: 255
+              mode: slider
+
+        transition_seconds:
+          name: Transition
+          description: Optional fade time in seconds, if supported by the lights.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 60
+              step: 1
+              mode: slider
+              unit_of_measurement: seconds
+
+    lights_to_turn_off:
+      name: Lights to TURN OFF
+      icon: mdi:lightbulb-off
+      input:
+        lights_off:
+          name: Lights
+          description: Select any lights that should turn off.
+          default: []
+          selector:
+            entity:
+              domain: light
+              multiple: true
+
+mode: restart
+max_exceeded: silent
+
+trigger:
+  - platform: state
+    entity_id: !input alexa_trigger
+    to: "on"
+
+variables:
+  lights_on_list: !input lights_on
+  lights_off_list: !input lights_off
+
+action:
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input alexa_trigger
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ lights_on_list | count > 0 }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: !input lights_on
+            data:
+              brightness: !input on_brightness
+              transition: !input transition_seconds
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ lights_off_list | count > 0 }}"
+        sequence:
+          - service: light.turn_off
+            target:
+              entity_id: !input lights_off
+
+  - service: input_boolean.turn_off
+    target:
+      entity_id: !input alexa_trigger
