@@ -1,5 +1,5 @@
 blueprint:
-  name: Laundry Done Alerts v1.16 (status enum, parallel, cycle locks)
+  name: Laundry Done Alerts v1.17 (status enum, parallel, cycle locks)
   description: >
     Announces when the washer or dryer finishes by watching current-status enum sensors.
     Each appliance is tracked after it enters the running state, then alerts once when that
@@ -188,8 +188,8 @@ variables:
       {{ '' }}
     {% endif %}
   v_phone_service_final: >-
-    {{ v_phone_service_override if v_phone_service_override | length > 0
-       else v_phone_service_autodetected }}
+    {% set override = v_phone_service_override | string | trim %}
+    {{ override if override else v_phone_service_autodetected | string | trim }}
 
   washer_status_id: !input washer_status_sensor
   dryer_status_id: !input dryer_status_sensor
@@ -233,6 +233,8 @@ action:
         {{ washer_lock_id if trigger.id == 'washer_start' else dryer_lock_id }}
       finish_csv_lc: >-
         {{ washer_finish_csv_lc if trigger.id == 'washer_start' else dryer_finish_csv_lc }}
+      running_lc: >-
+        {{ washer_running_lc if trigger.id == 'washer_start' else dryer_running_lc }}
       message_text: >-
         {{ v_washer_msg if trigger.id == 'washer_start' else v_dryer_msg }}
       trigger_from_lc: >-
@@ -271,13 +273,34 @@ action:
                     entity_id: "{{ cycle_lock_id }}"
                 - stop: "Timed out before a finish state was detected."
 
-        - delay: !input finish_debounce
+        - wait_template: >-
+            {% set cur = states(status_id) | string | lower | trim %}
+            {{ cur not in (finish_csv_lc | regex_findall('[^,]+')) }}
+          timeout: !input finish_debounce
+          continue_on_timeout: true
+
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: >-
+                    {{ wait.completed
+                       and states(status_id) | string | lower | trim == running_lc }}
+              sequence:
+                - wait_template: >-
+                    {{ states(status_id) | string | lower | trim != running_lc }}
+                  timeout: !input start_debounce
+                  continue_on_timeout: true
+
+                - choose:
+                    - conditions:
+                        - condition: template
+                          value_template: "{{ not wait.completed }}"
+                      sequence:
+                        - stop: "A newer appliance cycle is now being tracked."
 
       until:
         - condition: template
-          value_template: >-
-            {% set cur = states(status_id) | string | lower | trim %}
-            {{ cur in (finish_csv_lc | regex_findall('[^,]+')) }}
+          value_template: "{{ not wait.completed }}"
 
   - service: input_boolean.turn_off
     target:
