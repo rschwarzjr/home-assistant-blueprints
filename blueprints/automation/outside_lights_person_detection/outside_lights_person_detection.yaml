@@ -1,0 +1,156 @@
+blueprint:
+  name: Outside Lights on Person Detection
+  description: >
+    Turns on one or more outside lights when a person is detected by any of
+    the selected camera sensors, then turns them off once no person has been
+    detected on any of the cameras for a set amount of time.
+
+
+    Only runs when it is dark outside (sun elevation below the threshold).
+
+
+    Turn on Test mode to log what would happen (which lights, why, and for how
+    long) without switching any lights. Test messages appear in the Logbook.
+
+
+    Works with any camera integration that exposes a person-detection
+    binary_sensor (Frigate, UniFi Protect, Reolink, Amcrest, etc.).
+  domain: automation
+  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/outside_lights_person_detection/outside_lights_person_detection.yaml
+  min_version: 2024.10.0
+  input:
+    person_sensors:
+      name: Person detection sensors
+      description: >
+        The camera person-detection binary sensors. Select one per camera; any
+        of them turning on will trigger the automation.
+      selector:
+        entity:
+          domain: binary_sensor
+          multiple: true
+    outside_lights:
+      name: Outside lights
+      description: The lights to turn on when a person is detected.
+      selector:
+        entity:
+          domain: light
+          multiple: true
+    clear_delay:
+      name: Keep lights on after person is gone
+      description: >
+        How long no person must be detected on any of the cameras before the
+        lights turn off. A new detection on either camera resets this timer.
+      default:
+        hours: 0
+        minutes: 3
+        seconds: 0
+      selector:
+        duration:
+    sun_elevation:
+      name: Darkness threshold (sun elevation)
+      description: >
+        The automation only runs when the sun is below this elevation, in
+        degrees. 0 is sunset/sunrise, -6 is the end of civil twilight. The
+        default of -4 is a good "properly dark" compromise. Set it to 90 to
+        treat it as always dark, which is handy for daytime testing.
+      default: -4
+      selector:
+        number:
+          min: -20
+          max: 90
+          step: 1
+          unit_of_measurement: "°"
+          mode: slider
+    test_mode:
+      name: Test mode
+      description: >
+        When on, the lights are NOT switched. Instead, the Logbook gets an entry
+        saying which lights would turn on, why, and for how long, plus another
+        when they would turn off. Everything else (triggers, darkness check,
+        waiting for the cameras to clear) runs as normal.
+      default: false
+      selector:
+        boolean:
+
+mode: single
+max_exceeded: silent
+
+variables:
+  test_mode: !input test_mode
+  lights: !input outside_lights
+  sensors: !input person_sensors
+  clear_delay: !input clear_delay
+  sun_threshold: !input sun_elevation
+  clear_delay_text: >-
+    {% set total = clear_delay.get('hours', 0) | int(0) * 3600
+       + clear_delay.get('minutes', 0) | int(0) * 60
+       + clear_delay.get('seconds', 0) | int(0) %}
+    {{ '%g' | format(total / 60) }} min
+  on_message: >-
+    Would turn ON {{ lights | join(', ') }}. Reason: {{ trigger.to_state.name }}
+    ({{ trigger.entity_id }}) detected a person while it is dark (sun elevation
+    {{ state_attr('sun.sun', 'elevation') }}° is below the {{ sun_threshold }}°
+    threshold). Would keep them on until no person has been detected on any
+    camera for {{ clear_delay_text }}, then turn them OFF.
+  off_message: >-
+    Would turn OFF {{ lights | join(', ') }}: no person has been detected on any
+    camera for {{ clear_delay_text }}.
+
+triggers:
+  - trigger: state
+    entity_id: !input person_sensors
+    to: "on"
+
+conditions:
+  - condition: numeric_state
+    entity_id: sun.sun
+    attribute: elevation
+    below: !input sun_elevation
+
+actions:
+  # Turn on (or log that we would)
+  - if:
+      - condition: template
+        value_template: "{{ test_mode }}"
+    then:
+      - action: logbook.log
+        data:
+          name: Outside lights (TEST MODE)
+          message: "{{ on_message }}"
+    else:
+      - action: light.turn_on
+        target:
+          entity_id: !input outside_lights
+
+  # Wait until no camera has seen a person for the full delay. A new detection
+  # during the wait sends us back around the loop, so the countdown restarts.
+  - repeat:
+      sequence:
+        - wait_template: >-
+            {{ expand(sensors) | selectattr('state', 'eq', 'on') | list | length == 0 }}
+        - wait_for_trigger:
+            - trigger: state
+              entity_id: !input person_sensors
+              to: "on"
+          timeout: !input clear_delay
+          continue_on_timeout: true
+      until:
+        - condition: template
+          value_template: >-
+            {{ expand(sensors)
+               | rejectattr('state', 'in', ['off', 'unavailable', 'unknown'])
+               | list | length == 0 }}
+
+  # Turn off (or log that we would)
+  - if:
+      - condition: template
+        value_template: "{{ test_mode }}"
+    then:
+      - action: logbook.log
+        data:
+          name: Outside lights (TEST MODE)
+          message: "{{ off_message }}"
+    else:
+      - action: light.turn_off
+        target:
+          entity_id: !input outside_lights
