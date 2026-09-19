@@ -1,105 +1,124 @@
 blueprint:
-  name: Movie Time v1.1 — TV Lighting Preset
+  name: Movie Time v1.2 - TV Lighting Preset
   description: >
     Sets lighting for watching TV: two selected lights are set to specific
-    brightness percentages and a third selected light is turned off. This
-    automation can be run manually from Home Assistant, or triggered by Alexa
-    through an input_boolean helper.
+    brightness percentages and a third selected light is turned off.
 
-    Alexa setup:
-      1. Create a Toggle helper in Home Assistant, such as "Movie Time Trigger".
-      2. Select that helper under "Alexa Trigger Switch / input_boolean helper".
-      3. Expose the helper to Alexa if needed.
-      4. In the Alexa app, create a routine for the phrase "Alexa, it's movie time"
-         that turns the helper on.
-      5. After this automation runs, it turns the helper back off so the phrase can
-         be used again.
+    Run it directly from Home Assistant by running the automation manually or by
+    turning on the selected trigger helper from a dashboard. To trigger it with
+    Alexa, expose the same input_boolean helper to Alexa and create an Alexa
+    routine for the phrase "Alexa, it's movie time" that turns the helper on.
 
-    Brightness uses brightness_pct and accepts 1-100. Use the "Light to turn OFF"
-    input for any light that should be off instead of setting brightness to 0.
+    After Movie Time runs, the helper is turned back off so the Home Assistant
+    control and Alexa phrase can be used again.
 
   domain: automation
+  author: chatgpt
   source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/movie_time/movie_time.yaml
 
+  homeassistant:
+    min_version: "2024.6.0"
+
   input:
-    alexa_trigger_switch:
-      name: Alexa Trigger Switch / input_boolean helper
+    movie_time_trigger:
+      name: Movie Time trigger helper
       description: >
-        Toggle helper that Alexa turns on to run Movie Time. The automation resets
-        this helper back off after it runs.
+        Input boolean helper used to start Movie Time from Home Assistant or
+        Alexa. Expose this helper to Alexa, then create an Alexa routine for
+        "Alexa, it's movie time" that turns it on.
       selector:
         entity:
           domain: input_boolean
 
-    light_one:
-      name: Light #1
-      selector:
-        entity:
-          domain: light
+    lights_to_dim:
+      name: Lights to set
+      icon: mdi:television-ambient-light
+      input:
+        light_one:
+          name: Light #1
+          selector:
+            entity:
+              domain: light
 
-    light_one_brightness:
-      name: Light #1 brightness percentage
-      default: 30
-      selector:
-        number:
-          min: 1
-          max: 100
-          mode: slider
-          step: 1
-          unit_of_measurement: "%"
+        light_one_brightness:
+          name: Light #1 brightness
+          description: Brightness percentage for Light #1.
+          default: 30
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              mode: slider
+              unit_of_measurement: "%"
 
-    light_two:
-      name: Light #2
-      selector:
-        entity:
-          domain: light
+        light_two:
+          name: Light #2
+          selector:
+            entity:
+              domain: light
 
-    light_two_brightness:
-      name: Light #2 brightness percentage
-      default: 30
-      selector:
-        number:
-          min: 1
-          max: 100
-          mode: slider
-          step: 1
-          unit_of_measurement: "%"
+        light_two_brightness:
+          name: Light #2 brightness
+          description: Brightness percentage for Light #2.
+          default: 30
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              mode: slider
+              unit_of_measurement: "%"
 
     light_to_turn_off:
       name: Light to turn OFF
-      selector:
-        entity:
-          domain: light
+      icon: mdi:lightbulb-off
+      input:
+        off_light:
+          name: Light
+          description: The third selected light to turn off for Movie Time.
+          selector:
+            entity:
+              domain: light
 
-    transition_seconds:
-      name: Optional transition seconds
-      description: Fade duration when setting brightness, if supported by the lights.
-      default: 0
-      selector:
-        number:
-          min: 0
-          max: 30
-          step: 1
-          mode: slider
-          unit_of_measurement: seconds
+    options:
+      name: Options
+      icon: mdi:tune
+      input:
+        transition_seconds:
+          name: Transition
+          description: Optional fade duration when changing lights, if supported.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 60
+              step: 1
+              mode: slider
+              unit_of_measurement: seconds
 
-mode: single
+mode: restart
 max_exceeded: silent
 
 trigger:
   - platform: state
-    id: alexa_helper_on
-    entity_id: !input alexa_trigger_switch
-    from: "off"
+    entity_id: !input movie_time_trigger
     to: "on"
 
 condition: []
 
 action:
+  - alias: "Reset Movie Time trigger helper"
+    service: input_boolean.turn_off
+    target:
+      entity_id: !input movie_time_trigger
+
   - alias: "Turn off third light"
     service: light.turn_off
     target:
-      entity_id: !input light_to_turn_off
+      entity_id: !input off_light
+    data:
+      transition: !input transition_seconds
 
   - alias: "Set Light #1 brightness"
     service: light.turn_on
@@ -116,8 +135,3 @@ action:
     data:
       brightness_pct: !input light_two_brightness
       transition: !input transition_seconds
-
-  - alias: "Reset Alexa helper switch"
-    service: input_boolean.turn_off
-    target:
-      entity_id: !input alexa_trigger_switch
