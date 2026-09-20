@@ -41,6 +41,11 @@ paths.each do |path|
     exit 1
   end
 
+  if document.dig("blueprint")&.key?("min_version")
+    warn "Invalid blueprint schema in #{path}: put 'min_version' under 'blueprint.homeassistant'"
+    exit 1
+  end
+
   missing_keys = []
   missing_keys << "trigger(s)" unless document.key?("trigger") || document.key?("triggers")
   missing_keys << "action(s)" unless document.key?("action") || document.key?("actions")
