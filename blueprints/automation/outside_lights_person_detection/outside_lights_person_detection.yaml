@@ -1,5 +1,5 @@
 blueprint:
-  name: Outside Lights on Person Detection v1.1
+  name: Outside Lights on Person Detection v1.2
   description: >
     Turns on one or more outside lights when a person is detected by any of
     the selected camera sensors, then turns them off once no person has been
@@ -9,8 +9,8 @@ blueprint:
     Only runs when it is dark outside (sun elevation below the threshold).
 
 
-    Turn on Test mode to log what would happen (which lights, why, and for how
-    long) without switching any lights. Test messages appear in the Logbook.
+    Test mode can log without controlling lights, bypass the darkness check for
+    daytime log testing, or bypass darkness while controlling the lights.
 
 
     Works with any camera integration that exposes a person-detection
@@ -65,23 +65,43 @@ blueprint:
     test_mode:
       name: Test mode
       description: >
-        When on, the lights are NOT switched. Instead, the Logbook gets an entry
-        saying which lights would turn on, why, and for how long, plus another
-        when they would turn off. Everything else (triggers, darkness check,
-        waiting for the cameras to clear) runs as normal.
+        Turn on to use the selected Test mode behavior. Turn off for normal
+        operation, which controls the lights only when it is dark.
       default: false
       selector:
         boolean:
+    test_mode_behavior:
+      name: Test mode behavior
+      description: >
+        Choose what happens while Test mode is on. All choices still require a
+        person-detection trigger and wait for the configured clear delay.
+      default: log_only
+      selector:
+        select:
+          options:
+            - label: Log only - require darkness
+              value: log_only
+            - label: Log only - ignore darkness
+              value: log_only_ignore_darkness
+            - label: Control lights - ignore darkness
+              value: control_lights_ignore_darkness
 
 mode: single
 max_exceeded: silent
 
 variables:
   test_mode: !input test_mode
+  test_mode_behavior: !input test_mode_behavior
   lights: !input outside_lights
   sensors: !input person_sensors
   clear_delay: !input clear_delay
   sun_threshold: !input sun_elevation
+  darkness_bypassed: >-
+    {{ test_mode and test_mode_behavior in
+       ['log_only_ignore_darkness', 'control_lights_ignore_darkness'] }}
+  log_only_test: >-
+    {{ test_mode and test_mode_behavior in
+       ['log_only', 'log_only_ignore_darkness'] }}
   clear_delay_text: >-
     {% set total = clear_delay.get('hours', 0) | int(0) * 3600
        + clear_delay.get('minutes', 0) | int(0) * 60
@@ -89,10 +109,15 @@ variables:
     {{ '%g' | format(total / 60) }} min
   on_message: >-
     Would turn ON {{ lights | join(', ') }}. Reason: {{ trigger.to_state.name }}
-    ({{ trigger.entity_id }}) detected a person while it is dark (sun elevation
-    {{ state_attr('sun.sun', 'elevation') }}° is below the {{ sun_threshold }}°
-    threshold). Would keep them on until no person has been detected on any
-    camera for {{ clear_delay_text }}, then turn them OFF.
+    ({{ trigger.entity_id }}) detected a person.
+    {% if darkness_bypassed %}
+      The darkness check was bypassed by Test mode.
+    {% else %}
+      Sun elevation {{ state_attr('sun.sun', 'elevation') }}° is below the
+      {{ sun_threshold }}° darkness threshold.
+    {% endif %}
+    Would keep them on until no person has been detected on any camera for
+    {{ clear_delay_text }}, then turn them OFF.
   off_message: >-
     Would turn OFF {{ lights | join(', ') }}: no person has been detected on any
     camera for {{ clear_delay_text }}.
@@ -103,16 +128,17 @@ triggers:
     to: "on"
 
 conditions:
-  - condition: numeric_state
-    entity_id: sun.sun
-    attribute: elevation
-    below: !input sun_elevation
+  - condition: template
+    value_template: >-
+      {{ darkness_bypassed or
+         (state_attr('sun.sun', 'elevation') | float(90))
+         < (sun_threshold | float) }}
 
 actions:
   # Turn on (or log that we would)
   - if:
       - condition: template
-        value_template: "{{ test_mode }}"
+        value_template: "{{ log_only_test }}"
     then:
       - action: logbook.log
         data:
@@ -145,7 +171,7 @@ actions:
   # Turn off (or log that we would)
   - if:
       - condition: template
-        value_template: "{{ test_mode }}"
+        value_template: "{{ log_only_test }}"
     then:
       - action: logbook.log
         data:
