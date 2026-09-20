@@ -1,8 +1,8 @@
 blueprint:
-  name: Movie Time v1.2 - TV Lighting Preset
+  name: Movie Time v1.4 - TV Lighting Preset
   description: >
     Sets lighting for watching TV: two selected lights are set to specific
-    brightness percentages and a third selected light is turned off.
+    brightness percentages, with the option to turn off a third light.
 
     Run it directly from Home Assistant by running the automation manually or by
     turning on the selected trigger helper from a dashboard. To trigger it with
@@ -14,7 +14,8 @@ blueprint:
 
   domain: automation
   author: chatgpt
-  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/movie_time/movie_time.yaml
+  source_url: >-
+    https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/movie_time/movie_time.yaml
 
   homeassistant:
     min_version: "2024.6.0"
@@ -35,14 +36,14 @@ blueprint:
       icon: mdi:television-ambient-light
       input:
         light_one:
-          name: Light #1
+          name: "Light #1"
           selector:
             entity:
               domain: light
 
         light_one_brightness:
-          name: Light #1 brightness
-          description: Brightness percentage for Light #1.
+          name: "Light #1 brightness"
+          description: "Brightness percentage for Light #1."
           default: 30
           selector:
             number:
@@ -53,14 +54,14 @@ blueprint:
               unit_of_measurement: "%"
 
         light_two:
-          name: Light #2
+          name: "Light #2"
           selector:
             entity:
               domain: light
 
         light_two_brightness:
-          name: Light #2 brightness
-          description: Brightness percentage for Light #2.
+          name: "Light #2 brightness"
+          description: "Brightness percentage for Light #2."
           default: 30
           selector:
             number:
@@ -71,12 +72,13 @@ blueprint:
               unit_of_measurement: "%"
 
     light_to_turn_off:
-      name: Light to turn OFF
+      name: Optional light to turn OFF
       icon: mdi:lightbulb-off
       input:
         off_light:
-          name: Light
-          description: The third selected light to turn off for Movie Time.
+          name: Light to turn OFF
+          description: Leave empty if no light should be turned off.
+          default:
           selector:
             entity:
               domain: light
@@ -113,12 +115,17 @@ action:
     target:
       entity_id: !input movie_time_trigger
 
-  - alias: "Turn off third light"
-    service: light.turn_off
-    target:
-      entity_id: !input off_light
-    data:
-      transition: !input transition_seconds
+  - alias: "Turn off optional light"
+    if:
+      - condition: template
+        value_template: >-
+          {{ off_light_entity is string and off_light_entity | length > 0 }}
+    then:
+      - service: light.turn_off
+        target:
+          entity_id: "{{ off_light_entity }}"
+        data:
+          transition: !input transition_seconds
 
   - alias: "Set Light #1 brightness"
     service: light.turn_on
@@ -135,3 +142,6 @@ action:
     data:
       brightness_pct: !input light_two_brightness
       transition: !input transition_seconds
+
+variables:
+  off_light_entity: !input off_light
