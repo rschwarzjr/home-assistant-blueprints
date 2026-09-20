@@ -1,5 +1,5 @@
 blueprint:
-  name: Outside Lights on Person Detection
+  name: Outside Lights on Person Detection v1.1
   description: >
     Turns on one or more outside lights when a person is detected by any of
     the selected camera sensors, then turns them off once no person has been
@@ -16,8 +16,9 @@ blueprint:
     Works with any camera integration that exposes a person-detection
     binary_sensor (Frigate, UniFi Protect, Reolink, Amcrest, etc.).
   domain: automation
-  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/outside_lights_person_detection/outside_lights_person_detection.yaml
-  min_version: 2024.10.0
+  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/outside_lights_person_detection/outside_lights_person_detection.yaml  # yamllint disable-line rule:line-length
+  homeassistant:
+    min_version: "2024.10.0"
   input:
     person_sensors:
       name: Person detection sensors
