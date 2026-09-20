@@ -1,15 +1,23 @@
 blueprint:
-  name: Garage Door Open Alerts v1.17-clean (Quiet Hours, 3 Stages + Close Button)
+  name: Garage Door Open Alerts v1.20-clean (Quiet Hours, 3 Stages + Close Button)
   description: >
-    v1.17-clean — Removed the Alexa follow-up question feature. Alexa now only
-    announces. Keeps mobile_app *device* notifications with a Close button,
-    per-channel Quiet Hours, custom names (default "Garage Door"), and 3 reminder stages.
+    v1.20-clean — Keeps the v1.17-clean Alexa behavior with announcements only.
+    Fixes delayed reminder Quiet Hours by recalculating quiet state before each
+    reminder stage, explicitly replaces delay placeholders in messages, and
+    evaluates dependent variables in ordered actions.
+    Keeps mobile_app *device* notifications with a Close button, per-channel
+    Quiet Hours, custom names (default "Garage Door"), and 3 reminder stages.
 
     Placeholders you can use in titles/messages:
       - [[ door_name ]]  (recommended; won't be pre-rendered by HA)
       - {{ door_name }}  (also supported)
+      - [[ first_delay ]] / {{ first_delay }}
+      - [[ second_delay ]] / {{ second_delay }}
+      - [[ third_delay ]] / {{ third_delay }}
 
   domain: automation
+  # yamllint disable-line rule:line-length
+  source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/garage_alert/garage_door_alerts.yaml
 
   input:
     # 1) Sensors & covers (order matters)
@@ -186,11 +194,10 @@ mode: parallel
 max: 10
 
 action:
-  - alias: "v1.17: Load inputs & maps"
+  - alias: "v1.20: Load inputs"
     variables:
       sensor_list: !input garage_door_sensors
       cover_list: !input garage_door_covers
-      cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
       custom1: !input custom_name_sensor_1
       custom2: !input custom_name_sensor_2
 
@@ -227,56 +234,71 @@ action:
       alexa_targets: !input alexa_targets
       mobile_device_id: !input mobile_device
 
-  - alias: "v1.17: Determine door & name"
+  - alias: "v1.20: Build entity maps"
     variables:
-      door_sensor: "{{ trigger.entity_id }}"
-      door_cover:  "{{ cover_map[trigger.entity_id] }}"
+      cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
       name_map: >-
         {{ dict([
           ((sensor_list[0] if (sensor_list|length)>0 else ''), (custom1 if custom1|length>0 else (state_attr(sensor_list[0], 'friendly_name') if (sensor_list|length)>0 else ''))),
           ((sensor_list[1] if (sensor_list|length)>1 else ''), (custom2 if custom2|length>0 else (state_attr(sensor_list[1], 'friendly_name') if (sensor_list|length)>1 else '')))
         ]) }}
+
+  - alias: "v1.20: Determine door"
+    variables:
+      door_sensor: "{{ trigger.entity_id }}"
+      door_cover:  "{{ cover_map[trigger.entity_id] }}"
+
+  - alias: "v1.20: Resolve door name"
+    variables:
       door_name_real: "{{ name_map.get(door_sensor) or door_sensor }}"
 
-  - alias: "v1.17: Build titles/messages"
+  - alias: "v1.20: Build titles/messages"
     variables:
       title_initial: "{{ title_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
       msg_initial:   "{{ (msg_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real)) or ('Door opened — ' ~ door_name_real) }}"
       title_first:   "{{ title_first_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-      msg_first:     "{{ msg_first_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+      msg_first:     "{{ msg_first_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) | replace('[[ first_delay ]]', (first_delay | string)) | replace('{{ first_delay }}', (first_delay | string)) }}"
       title_second:  "{{ title_second_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-      msg_second:    "{{ msg_second_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+      msg_second:    "{{ msg_second_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) | replace('[[ second_delay ]]', (second_delay | string)) | replace('{{ second_delay }}', (second_delay | string)) }}"
       title_third:   "{{ title_third_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-      msg_third:     "{{ msg_third_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+      msg_third:     "{{ msg_third_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) | replace('[[ third_delay ]]', (third_delay | string)) | replace('{{ third_delay }}', (third_delay | string)) }}"
       btn_label:     "{{ close_btn_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
 
   # Quiet-hour helpers as 0/1 integers (so we can test == 0 reliably)
-  - alias: "v1.17: Quiet-hour helpers (numeric)"
+  - alias: "v1.20: Build quiet-hour boundaries"
     variables:
-      _now_sec: "{{ now().hour*3600 + now().minute*60 + now().second }}"
       _p_start: "{{ strptime(phone_quiet_start, '%H:%M:%S').hour*3600 + strptime(phone_quiet_start, '%H:%M:%S').minute*60 + strptime(phone_quiet_start, '%H:%M:%S').second }}"
       _p_end:   "{{ strptime(phone_quiet_end,   '%H:%M:%S').hour*3600 + strptime(phone_quiet_end,   '%H:%M:%S').minute*60 + strptime(phone_quiet_end,   '%H:%M:%S').second }}"
       _a_start: "{{ strptime(alexa_quiet_start, '%H:%M:%S').hour*3600 + strptime(alexa_quiet_start, '%H:%M:%S').minute*60 + strptime(alexa_quiet_start, '%H:%M:%S').second }}"
       _a_end:   "{{ strptime(alexa_quiet_end,   '%H:%M:%S').hour*3600 + strptime(alexa_quiet_end,   '%H:%M:%S').minute*60 + strptime(alexa_quiet_end,   '%H:%M:%S').second }}"
+
+  - alias: "v1.20: Evaluate initial quiet hours"
+    variables:
       phone_quiet_now: >
-        {% if not phone_quiet_enabled %}0
-        {% elif _p_start <= _p_end %}
-          {% if (_now_sec >= _p_start) and (_now_sec < _p_end) %}1{% else %}0{% endif %}
+        {% set now_sec = now().hour * 3600 + now().minute * 60 + now().second %}
+        {% set start_sec = _p_start | int %}
+        {% set end_sec = _p_end | int %}
+        {% if not (phone_quiet_enabled | bool) %}0
+        {% elif start_sec <= end_sec %}
+          {% if (now_sec >= start_sec) and (now_sec < end_sec) %}1{% else %}0{% endif %}
         {% else %}
-          {% if (_now_sec >= _p_start) or (_now_sec < _p_end) %}1{% else %}0{% endif %}
+          {% if (now_sec >= start_sec) or (now_sec < end_sec) %}1{% else %}0{% endif %}
         {% endif %}
       alexa_quiet_now: >
-        {% if not alexa_quiet_enabled %}0
-        {% elif _a_start <= _a_end %}
-          {% if (_now_sec >= _a_start) and (_now_sec < _a_end) %}1{% else %}0{% endif %}
+        {% set now_sec = now().hour * 3600 + now().minute * 60 + now().second %}
+        {% set start_sec = _a_start | int %}
+        {% set end_sec = _a_end | int %}
+        {% if not (alexa_quiet_enabled | bool) %}0
+        {% elif start_sec <= end_sec %}
+          {% if (now_sec >= start_sec) and (now_sec < end_sec) %}1{% else %}0{% endif %}
         {% else %}
-          {% if (_now_sec >= _a_start) or (_now_sec < _a_end) %}1{% else %}0{% endif %}
+          {% if (now_sec >= start_sec) or (now_sec < end_sec) %}1{% else %}0{% endif %}
         {% endif %}
 
   ####################################
   # Initial alert
   ####################################
-  - alias: "v1.17: Initial → Phone (send if quiet==0)"
+  - alias: "v1.20: Initial → Phone (send if quiet==0)"
     choose:
       - conditions:
           - condition: template
@@ -293,7 +315,7 @@ action:
                   title: "{{ btn_label }}"
     default: []
 
-  - alias: "v1.17: Initial → Alexa (send if quiet==0)"
+  - alias: "v1.20: Initial → Alexa (send if quiet==0)"
     choose:
       - conditions:
           - condition: template
@@ -310,13 +332,35 @@ action:
   ####################################
   # Stage 1
   ####################################
-  - alias: "v1.17: Wait Stage 1"
+  - alias: "v1.20: Wait Stage 1"
     delay: "{{ (first_delay | int) * 60 }}"
-  - alias: "v1.17: Still open (Stage 1)?"
+  - alias: "v1.20: Still open (Stage 1)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
+  - alias: "v1.20: Refresh quiet-hour helpers (Stage 1)"
+    variables:
+      phone_quiet_now: >
+        {% set now_sec = now().hour * 3600 + now().minute * 60 + now().second %}
+        {% set start_sec = _p_start | int %}
+        {% set end_sec = _p_end | int %}
+        {% if not (phone_quiet_enabled | bool) %}0
+        {% elif start_sec <= end_sec %}
+          {% if (now_sec >= start_sec) and (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% else %}
+          {% if (now_sec >= start_sec) or (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% endif %}
+      alexa_quiet_now: >
+        {% set now_sec = now().hour * 3600 + now().minute * 60 + now().second %}
+        {% set start_sec = _a_start | int %}
+        {% set end_sec = _a_end | int %}
+        {% if not (alexa_quiet_enabled | bool) %}0
+        {% elif start_sec <= end_sec %}
+          {% if (now_sec >= start_sec) and (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% else %}
+          {% if (now_sec >= start_sec) or (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% endif %}
 
-  - alias: "v1.17: Stage 1 → Phone"
+  - alias: "v1.20: Stage 1 → Phone"
     choose:
       - conditions:
           - condition: template
@@ -333,7 +377,7 @@ action:
                   title: "{{ btn_label }}"
     default: []
 
-  - alias: "v1.17: Stage 1 → Alexa"
+  - alias: "v1.20: Stage 1 → Alexa"
     choose:
       - conditions:
           - condition: template
@@ -350,16 +394,38 @@ action:
   ####################################
   # Stage 2
   ####################################
-  - alias: "v1.17: Compute remaining to Stage 2"
+  - alias: "v1.20: Compute remaining to Stage 2"
     variables:
       remaining_minutes: "{{ max((second_delay | int) - (first_delay | int), 0) }}"
-  - alias: "v1.17: Wait Stage 2"
+  - alias: "v1.20: Wait Stage 2"
     delay: "{{ remaining_minutes * 60 }}"
-  - alias: "v1.17: Still open (Stage 2)?"
+  - alias: "v1.20: Still open (Stage 2)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
+  - alias: "v1.20: Refresh quiet-hour helpers (Stage 2)"
+    variables:
+      phone_quiet_now: >
+        {% set now_sec = now().hour * 3600 + now().minute * 60 + now().second %}
+        {% set start_sec = _p_start | int %}
+        {% set end_sec = _p_end | int %}
+        {% if not (phone_quiet_enabled | bool) %}0
+        {% elif start_sec <= end_sec %}
+          {% if (now_sec >= start_sec) and (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% else %}
+          {% if (now_sec >= start_sec) or (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% endif %}
+      alexa_quiet_now: >
+        {% set now_sec = now().hour * 3600 + now().minute * 60 + now().second %}
+        {% set start_sec = _a_start | int %}
+        {% set end_sec = _a_end | int %}
+        {% if not (alexa_quiet_enabled | bool) %}0
+        {% elif start_sec <= end_sec %}
+          {% if (now_sec >= start_sec) and (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% else %}
+          {% if (now_sec >= start_sec) or (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% endif %}
 
-  - alias: "v1.17: Stage 2 → Phone"
+  - alias: "v1.20: Stage 2 → Phone"
     choose:
       - conditions:
           - condition: template
@@ -376,7 +442,7 @@ action:
                   title: "{{ btn_label }}"
     default: []
 
-  - alias: "v1.17: Stage 2 → Alexa"
+  - alias: "v1.20: Stage 2 → Alexa"
     choose:
       - conditions:
           - condition: template
@@ -393,16 +459,38 @@ action:
   ####################################
   # Stage 3
   ####################################
-  - alias: "v1.17: Compute remaining to Stage 3"
+  - alias: "v1.20: Compute remaining to Stage 3"
     variables:
       remaining_minutes_2: "{{ max((third_delay | int) - (second_delay | int), 0) }}"
-  - alias: "v1.17: Wait Stage 3"
+  - alias: "v1.20: Wait Stage 3"
     delay: "{{ remaining_minutes_2 * 60 }}"
-  - alias: "v1.17: Still open (Stage 3)?"
+  - alias: "v1.20: Still open (Stage 3)?"
     condition: template
     value_template: "{{ is_state(door_sensor, 'on') }}"
+  - alias: "v1.20: Refresh quiet-hour helpers (Stage 3)"
+    variables:
+      phone_quiet_now: >
+        {% set now_sec = now().hour * 3600 + now().minute * 60 + now().second %}
+        {% set start_sec = _p_start | int %}
+        {% set end_sec = _p_end | int %}
+        {% if not (phone_quiet_enabled | bool) %}0
+        {% elif start_sec <= end_sec %}
+          {% if (now_sec >= start_sec) and (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% else %}
+          {% if (now_sec >= start_sec) or (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% endif %}
+      alexa_quiet_now: >
+        {% set now_sec = now().hour * 3600 + now().minute * 60 + now().second %}
+        {% set start_sec = _a_start | int %}
+        {% set end_sec = _a_end | int %}
+        {% if not (alexa_quiet_enabled | bool) %}0
+        {% elif start_sec <= end_sec %}
+          {% if (now_sec >= start_sec) and (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% else %}
+          {% if (now_sec >= start_sec) or (now_sec < end_sec) %}1{% else %}0{% endif %}
+        {% endif %}
 
-  - alias: "v1.17: Stage 3 → Phone"
+  - alias: "v1.20: Stage 3 → Phone"
     choose:
       - conditions:
           - condition: template
@@ -419,7 +507,7 @@ action:
                   title: "{{ btn_label }}"
     default: []
 
-  - alias: "v1.17: Stage 3 → Alexa"
+  - alias: "v1.20: Stage 3 → Alexa"
     choose:
       - conditions:
           - condition: template
