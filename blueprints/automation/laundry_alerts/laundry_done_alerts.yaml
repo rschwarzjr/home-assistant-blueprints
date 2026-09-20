@@ -1,5 +1,5 @@
 blueprint:
-  name: Laundry Done Alerts v1.17 (status enum, parallel, cycle locks)
+  name: Laundry Done Alerts v1.18 (status enum, parallel, cycle locks)
   description: >
     Announces when the washer or dryer finishes by watching current-status enum sensors.
     Each appliance is tracked after it enters the running state, then alerts once when that
@@ -7,6 +7,7 @@ blueprint:
     cycle locks so washer and dryer can run at the same time without duplicate alerts.
   domain: automation
   author: chatgpt
+  # yamllint disable-line rule:line-length
   source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/laundry_alerts/laundry_done_alerts.yaml
   homeassistant:
     min_version: '2023.9.0'
@@ -117,18 +118,18 @@ blueprint:
     phone_device:
       name: Phone Mobile App device
       description: >
-        Pick your phone device from the Mobile App integration. The blueprint will try
-        to derive notify.mobile_app_* from the device name unless an override is set.
+        Pick the phone device that should receive notifications from the Mobile App
+        integration.
       default: ""
       selector:
         device:
           integration: mobile_app
 
     phone_notify_service_override:
-      name: Optional manual phone notify service
+      name: Optional legacy phone notify service
       description: >
-        Exact notify service to use if auto-detection fails, for example
-        notify.mobile_app_roberts_iphone.
+        Existing automations may keep an exact notify service here, for example
+        notify.mobile_app_your_phone. Leave this blank to use the selected device.
       default: ""
       selector:
         text: {}
@@ -176,20 +177,8 @@ variables:
   v_send_phone: !input send_phone_notification
   v_phone_device: !input phone_device
   v_phone_service_override: !input phone_notify_service_override
-
-  v_phone_service_autodetected: >-
-    {% set d = v_phone_device %}
-    {% if d %}
-      {% set n = device_attr(d, 'name') | string %}
-      {% set slug = n | lower | replace(' ', '_') | replace('-', '_')
-                    | regex_replace('[^a-z0-9_]', '') %}
-      {{ 'notify.mobile_app_' ~ slug }}
-    {% else %}
-      {{ '' }}
-    {% endif %}
   v_phone_service_final: >-
-    {% set override = v_phone_service_override | string | trim %}
-    {{ override if override else v_phone_service_autodetected | string | trim }}
+    {{ v_phone_service_override | string | trim }}
 
   washer_status_id: !input washer_status_sensor
   dryer_status_id: !input dryer_status_sensor
@@ -240,7 +229,9 @@ action:
       trigger_from_lc: >-
         {{ trigger.from_state.state | string | lower | trim if trigger.from_state is not none else '' }}
       reset_csv_lc: >-
-        {{ (washer_finish_csv_lc if trigger.id == 'washer_start' else dryer_finish_csv_lc) ~ ',initial,unknown,unavailable' }}
+        {% set finish_states = washer_finish_csv_lc
+           if trigger.id == 'washer_start' else dryer_finish_csv_lc %}
+        {{ finish_states ~ ',initial,unknown,unavailable' }}
 
   - choose:
       - conditions:
@@ -336,10 +327,21 @@ action:
                       title: "{{ v_title }}"
                       message: "{{ message_text }}"
             default:
-              - service: persistent_notification.create
-                data:
-                  title: "Laundry Done Alerts"
-                  message: >-
-                    Phone notification skipped. Could not determine a valid
-                    mobile app notify service from the selected device. Set the
-                    manual phone notify service override if needed.
+              - choose:
+                  - conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ v_phone_device is string and v_phone_device | length > 0 }}
+                    sequence:
+                      - device_id: !input phone_device
+                        domain: mobile_app
+                        type: notify
+                        title: "{{ v_title }}"
+                        message: "{{ message_text }}"
+                default:
+                  - service: persistent_notification.create
+                    data:
+                      title: "Laundry Done Alerts"
+                      message: >-
+                        Phone notification skipped. Select a Mobile App device
+                        in the blueprint configuration.
