@@ -41,11 +41,11 @@ blueprint:
     custom_name_sensor_1:
       name: Custom name for Sensor 1
       default: "Garage Door"
-      selector: { text: {} }
+      selector: {text: {}}
     custom_name_sensor_2:
       name: Custom name for Sensor 2
       default: "Garage Door"
-      selector: { text: {} }
+      selector: {text: {}}
 
     # 3) Channels
     mobile_device:
@@ -66,123 +66,123 @@ blueprint:
     phone_quiet_enabled:
       name: Quiet Hours for Phone
       default: false
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     phone_quiet_start:
       name: Phone Quiet Start
       default: "22:00:00"
-      selector: { time: {} }
+      selector: {time: {}}
     phone_quiet_end:
       name: Phone Quiet End
       default: "07:00:00"
-      selector: { time: {} }
+      selector: {time: {}}
 
     alexa_quiet_enabled:
       name: Quiet Hours for Alexa
       default: false
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     alexa_quiet_start:
       name: Alexa Quiet Start
       default: "22:00:00"
-      selector: { time: {} }
+      selector: {time: {}}
     alexa_quiet_end:
       name: Alexa Quiet End
       default: "07:00:00"
-      selector: { time: {} }
+      selector: {time: {}}
 
     # 5) Delays
     first_delay_minutes:
       name: First reminder after (minutes)
       default: 10
       selector:
-        number: { min: 1, max: 120, mode: slider, unit_of_measurement: minutes }
+        number: {min: 1, max: 120, mode: slider, unit_of_measurement: minutes}
 
     second_delay_minutes:
       name: Second reminder after (minutes total)
       default: 60
       selector:
-        number: { min: 2, max: 240, mode: slider, unit_of_measurement: minutes }
+        number: {min: 2, max: 240, mode: slider, unit_of_measurement: minutes}
 
     third_delay_minutes:
       name: Third reminder after (minutes total)
       default: 180
       selector:
-        number: { min: 5, max: 720, mode: slider, unit_of_measurement: minutes }
+        number: {min: 5, max: 720, mode: slider, unit_of_measurement: minutes}
 
     # 6) Initial alert (Stage 0)
     send_initial_phone:
       name: Initial alert → Phone
       default: true
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     send_initial_alexa:
       name: Initial alert → Alexa
       default: true
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     title_initial:
       name: Initial alert title
       default: "🚪 Garage Alert"
-      selector: { text: {} }
+      selector: {text: {}}
     msg_initial:
       name: Initial alert message
       default: "Hey! [[ door_name ]] was just opened."
-      selector: { text: {} }
+      selector: {text: {}}
     close_button_label:
       name: Phone button label
       default: "Close [[ door_name ]]"
-      selector: { text: {} }
+      selector: {text: {}}
 
     # 7) Stage 1
     send_first_phone:
       name: First reminder → Phone
       default: true
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     send_first_alexa:
       name: First reminder → Alexa
       default: true
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     title_first:
       name: First reminder title
       default: "⏱️ Garage Reminder"
-      selector: { text: {} }
+      selector: {text: {}}
     msg_first:
       name: First reminder message
       default: "Heads up! [[ door_name ]] has been open for {{ first_delay }} minutes."
-      selector: { text: {} }
+      selector: {text: {}}
 
     # 8) Stage 2
     send_second_phone:
       name: Second reminder → Phone
       default: true
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     send_second_alexa:
       name: Second reminder → Alexa
       default: true
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     title_second:
       name: Second reminder title
       default: "⌛ Garage Still Open"
-      selector: { text: {} }
+      selector: {text: {}}
     msg_second:
       name: Second reminder message
       default: "FYI — [[ door_name ]] has been open for {{ second_delay }} minutes."
-      selector: { text: {} }
+      selector: {text: {}}
 
     # 9) Stage 3
     send_third_phone:
       name: Third reminder → Phone
       default: true
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     send_third_alexa:
       name: Third reminder → Alexa
       default: true
-      selector: { boolean: {} }
+      selector: {boolean: {}}
     title_third:
       name: Third reminder title
       default: "⚠️ Garage Still Open"
-      selector: { text: {} }
+      selector: {text: {}}
     msg_third:
       name: Third reminder message
       default: "Reminder: [[ door_name ]] has been open for {{ third_delay }} minutes."
-      selector: { text: {} }
+      selector: {text: {}}
 
 trigger:
   - platform: state
@@ -201,35 +201,35 @@ action:
       custom1: !input custom_name_sensor_1
       custom2: !input custom_name_sensor_2
 
-      first_delay:  !input first_delay_minutes
+      first_delay: !input first_delay_minutes
       second_delay: !input second_delay_minutes
-      third_delay:  !input third_delay_minutes
+      third_delay: !input third_delay_minutes
 
       send_initial_phone: !input send_initial_phone
       send_initial_alexa: !input send_initial_alexa
-      send_first_phone:   !input send_first_phone
-      send_first_alexa:   !input send_first_alexa
-      send_second_phone:  !input send_second_phone
-      send_second_alexa:  !input send_second_alexa
-      send_third_phone:   !input send_third_phone
-      send_third_alexa:   !input send_third_alexa
+      send_first_phone: !input send_first_phone
+      send_first_alexa: !input send_first_alexa
+      send_second_phone: !input send_second_phone
+      send_second_alexa: !input send_second_alexa
+      send_third_phone: !input send_third_phone
+      send_third_alexa: !input send_third_alexa
 
       phone_quiet_enabled: !input phone_quiet_enabled
-      phone_quiet_start:   !input phone_quiet_start
-      phone_quiet_end:     !input phone_quiet_end
+      phone_quiet_start: !input phone_quiet_start
+      phone_quiet_end: !input phone_quiet_end
       alexa_quiet_enabled: !input alexa_quiet_enabled
-      alexa_quiet_start:   !input alexa_quiet_start
-      alexa_quiet_end:     !input alexa_quiet_end
+      alexa_quiet_start: !input alexa_quiet_start
+      alexa_quiet_end: !input alexa_quiet_end
 
       title_initial_in: !input title_initial
-      msg_initial_in:   !input msg_initial
-      title_first_in:   !input title_first
-      msg_first_in:     !input msg_first
-      title_second_in:  !input title_second
-      msg_second_in:    !input msg_second
-      title_third_in:   !input title_third
-      msg_third_in:     !input msg_third
-      close_btn_in:     !input close_button_label
+      msg_initial_in: !input msg_initial
+      title_first_in: !input title_first
+      msg_first_in: !input msg_first
+      title_second_in: !input title_second
+      msg_second_in: !input msg_second
+      title_third_in: !input title_third
+      msg_third_in: !input msg_third
+      close_btn_in: !input close_button_label
 
       alexa_targets: !input alexa_targets
       mobile_device_id: !input mobile_device
@@ -239,14 +239,24 @@ action:
       cover_map: "{{ dict(zip(sensor_list, cover_list)) }}"
       name_map: >-
         {{ dict([
-          ((sensor_list[0] if (sensor_list|length)>0 else ''), (custom1 if custom1|length>0 else (state_attr(sensor_list[0], 'friendly_name') if (sensor_list|length)>0 else ''))),
-          ((sensor_list[1] if (sensor_list|length)>1 else ''), (custom2 if custom2|length>0 else (state_attr(sensor_list[1], 'friendly_name') if (sensor_list|length)>1 else '')))
+          (
+            sensor_list[0] if (sensor_list | length) > 0 else '',
+            custom1 if (custom1 | length) > 0 else
+              (state_attr(sensor_list[0], 'friendly_name')
+               if (sensor_list | length) > 0 else '')
+          ),
+          (
+            sensor_list[1] if (sensor_list | length) > 1 else '',
+            custom2 if (custom2 | length) > 0 else
+              (state_attr(sensor_list[1], 'friendly_name')
+               if (sensor_list | length) > 1 else '')
+          )
         ]) }}
 
   - alias: "v1.20: Determine door"
     variables:
       door_sensor: "{{ trigger.entity_id }}"
-      door_cover:  "{{ cover_map[trigger.entity_id] }}"
+      door_cover: "{{ cover_map[trigger.entity_id] }}"
 
   - alias: "v1.20: Resolve door name"
     variables:
@@ -254,23 +264,69 @@ action:
 
   - alias: "v1.20: Build titles/messages"
     variables:
-      title_initial: "{{ title_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-      msg_initial:   "{{ (msg_initial_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real)) or ('Door opened — ' ~ door_name_real) }}"
-      title_first:   "{{ title_first_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-      msg_first:     "{{ msg_first_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) | replace('[[ first_delay ]]', (first_delay | string)) | replace('{{ first_delay }}', (first_delay | string)) }}"
-      title_second:  "{{ title_second_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-      msg_second:    "{{ msg_second_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) | replace('[[ second_delay ]]', (second_delay | string)) | replace('{{ second_delay }}', (second_delay | string)) }}"
-      title_third:   "{{ title_third_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
-      msg_third:     "{{ msg_third_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) | replace('[[ third_delay ]]', (third_delay | string)) | replace('{{ third_delay }}', (third_delay | string)) }}"
-      btn_label:     "{{ close_btn_in | replace('[[ door_name ]]', door_name_real) | replace('{{ door_name }}', door_name_real) }}"
+      title_initial: >-
+        {{ title_initial_in
+           | replace('[[ door_name ]]', door_name_real)
+           | replace('{{ door_name }}', door_name_real) }}
+      msg_initial: >-
+        {{ (msg_initial_in
+            | replace('[[ door_name ]]', door_name_real)
+            | replace('{{ door_name }}', door_name_real))
+           or ('Door opened — ' ~ door_name_real) }}
+      title_first: >-
+        {{ title_first_in
+           | replace('[[ door_name ]]', door_name_real)
+           | replace('{{ door_name }}', door_name_real) }}
+      msg_first: >-
+        {{ msg_first_in
+           | replace('[[ door_name ]]', door_name_real)
+           | replace('{{ door_name }}', door_name_real)
+           | replace('[[ first_delay ]]', first_delay | string)
+           | replace('{{ first_delay }}', first_delay | string) }}
+      title_second: >-
+        {{ title_second_in
+           | replace('[[ door_name ]]', door_name_real)
+           | replace('{{ door_name }}', door_name_real) }}
+      msg_second: >-
+        {{ msg_second_in
+           | replace('[[ door_name ]]', door_name_real)
+           | replace('{{ door_name }}', door_name_real)
+           | replace('[[ second_delay ]]', second_delay | string)
+           | replace('{{ second_delay }}', second_delay | string) }}
+      title_third: >-
+        {{ title_third_in
+           | replace('[[ door_name ]]', door_name_real)
+           | replace('{{ door_name }}', door_name_real) }}
+      msg_third: >-
+        {{ msg_third_in
+           | replace('[[ door_name ]]', door_name_real)
+           | replace('{{ door_name }}', door_name_real)
+           | replace('[[ third_delay ]]', third_delay | string)
+           | replace('{{ third_delay }}', third_delay | string) }}
+      btn_label: >-
+        {{ close_btn_in
+           | replace('[[ door_name ]]', door_name_real)
+           | replace('{{ door_name }}', door_name_real) }}
 
   # Quiet-hour helpers as 0/1 integers (so we can test == 0 reliably)
   - alias: "v1.20: Build quiet-hour boundaries"
     variables:
-      _p_start: "{{ strptime(phone_quiet_start, '%H:%M:%S').hour*3600 + strptime(phone_quiet_start, '%H:%M:%S').minute*60 + strptime(phone_quiet_start, '%H:%M:%S').second }}"
-      _p_end:   "{{ strptime(phone_quiet_end,   '%H:%M:%S').hour*3600 + strptime(phone_quiet_end,   '%H:%M:%S').minute*60 + strptime(phone_quiet_end,   '%H:%M:%S').second }}"
-      _a_start: "{{ strptime(alexa_quiet_start, '%H:%M:%S').hour*3600 + strptime(alexa_quiet_start, '%H:%M:%S').minute*60 + strptime(alexa_quiet_start, '%H:%M:%S').second }}"
-      _a_end:   "{{ strptime(alexa_quiet_end,   '%H:%M:%S').hour*3600 + strptime(alexa_quiet_end,   '%H:%M:%S').minute*60 + strptime(alexa_quiet_end,   '%H:%M:%S').second }}"
+      _p_start: >-
+        {{ strptime(phone_quiet_start, '%H:%M:%S').hour * 3600
+           + strptime(phone_quiet_start, '%H:%M:%S').minute * 60
+           + strptime(phone_quiet_start, '%H:%M:%S').second }}
+      _p_end: >-
+        {{ strptime(phone_quiet_end, '%H:%M:%S').hour * 3600
+           + strptime(phone_quiet_end, '%H:%M:%S').minute * 60
+           + strptime(phone_quiet_end, '%H:%M:%S').second }}
+      _a_start: >-
+        {{ strptime(alexa_quiet_start, '%H:%M:%S').hour * 3600
+           + strptime(alexa_quiet_start, '%H:%M:%S').minute * 60
+           + strptime(alexa_quiet_start, '%H:%M:%S').second }}
+      _a_end: >-
+        {{ strptime(alexa_quiet_end, '%H:%M:%S').hour * 3600
+           + strptime(alexa_quiet_end, '%H:%M:%S').minute * 60
+           + strptime(alexa_quiet_end, '%H:%M:%S').second }}
 
   - alias: "v1.20: Evaluate initial quiet hours"
     variables:
@@ -319,7 +375,10 @@ action:
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_initial_alexa | bool) and ((alexa_quiet_now | int) == 0) and (alexa_targets | count > 0) }}"
+            value_template: >-
+              {{ (send_initial_alexa | bool)
+                 and ((alexa_quiet_now | int) == 0)
+                 and (alexa_targets | count > 0) }}
         sequence:
           - service: notify.alexa_media
             data:
@@ -381,7 +440,10 @@ action:
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_first_alexa | bool) and ((alexa_quiet_now | int) == 0) and (alexa_targets | count > 0) }}"
+            value_template: >-
+              {{ (send_first_alexa | bool)
+                 and ((alexa_quiet_now | int) == 0)
+                 and (alexa_targets | count > 0) }}
         sequence:
           - service: notify.alexa_media
             data:
@@ -446,7 +508,10 @@ action:
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_second_alexa | bool) and ((alexa_quiet_now | int) == 0) and (alexa_targets | count > 0) }}"
+            value_template: >-
+              {{ (send_second_alexa | bool)
+                 and ((alexa_quiet_now | int) == 0)
+                 and (alexa_targets | count > 0) }}
         sequence:
           - service: notify.alexa_media
             data:
@@ -511,7 +576,10 @@ action:
     choose:
       - conditions:
           - condition: template
-            value_template: "{{ (send_third_alexa | bool) and ((alexa_quiet_now | int) == 0) and (alexa_targets | count > 0) }}"
+            value_template: >-
+              {{ (send_third_alexa | bool)
+                 and ((alexa_quiet_now | int) == 0)
+                 and (alexa_targets | count > 0) }}
         sequence:
           - service: notify.alexa_media
             data:
