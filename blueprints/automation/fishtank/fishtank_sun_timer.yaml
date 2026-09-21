@@ -10,6 +10,7 @@ blueprint:
     weekday on-offset and an optional separate weekend on-offset. Create one automation
     per fish tank/outlet so each can have its own schedule and friendly name.
   domain: automation
+  # yamllint disable-line rule:line-length
   source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/fishtank/fishtank_sun_timer.yaml
   input:
     outlet_entity:

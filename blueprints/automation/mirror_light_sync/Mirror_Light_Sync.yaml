@@ -5,6 +5,7 @@ blueprint:
     When the closet light is ON at any brightness, the outlet turns ON. When the
     closet light turns OFF, the outlet turns OFF. Includes optional sync on HA start.
   domain: automation
+  # yamllint disable-line rule:line-length
   source_url: https://github.com/rschwarzjr/home-assistant-blueprints/blob/main/blueprints/automation/mirror_light_sync/Mirror_Light_Sync.yaml
 
   input:
