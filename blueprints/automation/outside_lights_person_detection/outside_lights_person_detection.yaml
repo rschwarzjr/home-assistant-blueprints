@@ -1,12 +1,23 @@
 blueprint:
-  name: Outside Lights on Person Detection v1.2
+  name: Outside Lights on Person Detection v1.3
   description: >
-    Turns on one or more outside lights when a person is detected by any of
-    the selected camera sensors, then turns them off once no person has been
-    detected on any of the cameras for a set amount of time.
+    Turns on outside lights when a person is detected by any of the selected
+    camera sensors, then turns them off once no person has been detected on any
+    of the cameras for a set amount of time. Person detection only runs when it
+    is dark outside (sun elevation below the threshold).
 
 
-    Only runs when it is dark outside (sun elevation below the threshold).
+    Person detection only controls lights that were off when the person was
+    detected, and only turns those same lights back off. A light that was
+    already on (from the sunset schedule, another automation, or by hand) is
+    left alone.
+
+
+    Optional sunset schedule: turns the outside lights on at sunset (with an
+    adjustable offset in 15 minute steps) and off at a set time (default 9:00
+    PM). Lights in the opt-out list are not turned on by the schedule; while
+    they are off, person detection still controls them. Once the schedule turns
+    the lights off, person detection takes over for the rest of the night.
 
 
     Test mode can log without controlling lights, bypass the darkness check for
@@ -31,7 +42,9 @@ blueprint:
           multiple: true
     outside_lights:
       name: Outside lights
-      description: The lights to turn on when a person is detected.
+      description: >
+        The lights to turn on when a person is detected. These are also the
+        lights the sunset schedule controls, minus any in the opt-out list.
       selector:
         entity:
           domain: light
@@ -40,7 +53,7 @@ blueprint:
       name: Keep lights on after person is gone
       description: >
         How long no person must be detected on any of the cameras before the
-        lights turn off. A new detection on either camera resets this timer.
+        lights turn off. A new detection on any camera resets this timer.
       default:
         hours: 0
         minutes: 3
@@ -50,10 +63,11 @@ blueprint:
     sun_elevation:
       name: Darkness threshold (sun elevation)
       description: >
-        The automation only runs when the sun is below this elevation, in
+        Person detection only runs when the sun is below this elevation, in
         degrees. 0 is sunset/sunrise, -6 is the end of civil twilight. The
         default of -4 is a good "properly dark" compromise. Set it to 90 to
-        treat it as always dark, which is handy for daytime testing.
+        treat it as always dark, which is handy for daytime testing. This does
+        not affect the sunset schedule.
       default: -4
       selector:
         number:
@@ -62,6 +76,77 @@ blueprint:
           step: 1
           unit_of_measurement: "°"
           mode: slider
+    schedule_enabled:
+      name: Sunset schedule
+      description: >
+        Turn on to switch the outside lights on at sunset and off at the
+        scheduled off time. Off by default so existing automations keep their
+        current behavior until you enable it.
+      default: false
+      selector:
+        boolean:
+    sunset_offset:
+      name: Sunset schedule - turn on time
+      description: >
+        When the schedule turns the lights on, relative to sunset.
+      default: "00:00:00"
+      selector:
+        select:
+          options:
+            - label: 2 h before sunset
+              value: "-02:00:00"
+            - label: 1 h 45 min before sunset
+              value: "-01:45:00"
+            - label: 1 h 30 min before sunset
+              value: "-01:30:00"
+            - label: 1 h 15 min before sunset
+              value: "-01:15:00"
+            - label: 1 h before sunset
+              value: "-01:00:00"
+            - label: 45 min before sunset
+              value: "-00:45:00"
+            - label: 30 min before sunset
+              value: "-00:30:00"
+            - label: 15 min before sunset
+              value: "-00:15:00"
+            - label: At sunset
+              value: "00:00:00"
+            - label: 15 min after sunset
+              value: "00:15:00"
+            - label: 30 min after sunset
+              value: "00:30:00"
+            - label: 45 min after sunset
+              value: "00:45:00"
+            - label: 1 h after sunset
+              value: "01:00:00"
+            - label: 1 h 15 min after sunset
+              value: "01:15:00"
+            - label: 1 h 30 min after sunset
+              value: "01:30:00"
+            - label: 1 h 45 min after sunset
+              value: "01:45:00"
+            - label: 2 h after sunset
+              value: "02:00:00"
+    schedule_off_time:
+      name: Sunset schedule - turn off time
+      description: >
+        When the schedule turns the lights off. If a person is being detected
+        at that time, the lights stay on until no person has been detected for
+        the clear delay. A time before noon is treated as after midnight.
+      default: "21:00:00"
+      selector:
+        time:
+    schedule_excluded_lights:
+      name: Sunset schedule - opt-out lights
+      description: >
+        Outside lights the schedule should NOT turn on. They still turn on for
+        person detection. Lights listed here that are not in Outside lights are
+        ignored.
+      default: []
+      selector:
+        entity:
+          domain: light
+          multiple: true
     test_mode:
       name: Test mode
       description: >
@@ -73,8 +158,10 @@ blueprint:
     test_mode_behavior:
       name: Test mode behavior
       description: >
-        Choose what happens while Test mode is on. All choices still require a
-        person-detection trigger and wait for the configured clear delay.
+        Choose what happens while Test mode is on. Person-detection choices
+        still require a person-detection trigger and wait for the configured
+        clear delay. The log-only choices also log the sunset schedule instead
+        of controlling the lights.
       default: log_only
       selector:
         select:
@@ -86,7 +173,12 @@ blueprint:
             - label: Control lights - ignore darkness
               value: control_lights_ignore_darkness
 
-mode: single
+# Parallel so the sunset and off-time triggers are never blocked by a
+# person-detection run that is waiting for the clear delay. A second detection
+# while lights are already on finds nothing to turn on and ends straight away;
+# the first run's wait loop handles the timer reset.
+mode: parallel
+max: 10
 max_exceeded: silent
 
 variables:
@@ -96,6 +188,20 @@ variables:
   sensors: !input person_sensors
   clear_delay: !input clear_delay
   sun_threshold: !input sun_elevation
+  schedule_enabled: !input schedule_enabled
+  sunset_offset: !input sunset_offset
+  schedule_off_time: !input schedule_off_time
+  excluded_lights: !input schedule_excluded_lights
+  scheduled_lights: >-
+    {{ lights | reject('in', excluded_lights) | list }}
+  sunset_offset_minutes: >-
+    {% set neg = sunset_offset.startswith('-') %}
+    {% set parts = sunset_offset.lstrip('-').split(':') %}
+    {% set mins = parts[0] | int(0) * 60 + parts[1] | int(0) %}
+    {{ -mins if neg else mins }}
+  # Off times before noon are treated as after midnight.
+  off_time_after_midnight: >-
+    {{ today_at(schedule_off_time) < today_at('12:00') }}
   darkness_bypassed: >-
     {{ test_mode and test_mode_behavior in
        ['log_only_ignore_darkness', 'control_lights_ignore_darkness'] }}
@@ -107,77 +213,205 @@ variables:
        + clear_delay.get('minutes', 0) | int(0) * 60
        + clear_delay.get('seconds', 0) | int(0) %}
     {{ '%g' | format(total / 60) }} min
-  on_message: >-
-    Would turn ON {{ lights | join(', ') }}. Reason: {{ trigger.to_state.name }}
-    ({{ trigger.entity_id }}) detected a person.
-    {% if darkness_bypassed %}
-      The darkness check was bypassed by Test mode.
-    {% else %}
-      Sun elevation {{ state_attr('sun.sun', 'elevation') }}° is below the
-      {{ sun_threshold }}° darkness threshold.
-    {% endif %}
-    Would keep them on until no person has been detected on any camera for
-    {{ clear_delay_text }}, then turn them OFF.
-  off_message: >-
-    Would turn OFF {{ lights | join(', ') }}: no person has been detected on any
-    camera for {{ clear_delay_text }}.
 
 triggers:
   - trigger: state
+    id: person
     entity_id: !input person_sensors
     to: "on"
+  - trigger: sun
+    id: schedule_on
+    event: sunset
+    offset: !input sunset_offset
+  - trigger: time
+    id: schedule_off
+    at: !input schedule_off_time
 
 conditions:
-  - condition: template
-    value_template: >-
-      {{ darkness_bypassed or
-         (state_attr('sun.sun', 'elevation') | float(90))
-         < (sun_threshold | float) }}
+  - condition: or
+    conditions:
+      - condition: and
+        conditions:
+          - condition: trigger
+            id: person
+          - condition: template
+            value_template: >-
+              {{ darkness_bypassed or
+                 (state_attr('sun.sun', 'elevation') | float(90))
+                 < (sun_threshold | float) }}
+      - condition: and
+        conditions:
+          - condition: trigger
+            id:
+              - schedule_on
+              - schedule_off
+          - condition: template
+            value_template: "{{ schedule_enabled }}"
 
 actions:
-  # Turn on (or log that we would)
-  - if:
-      - condition: template
-        value_template: "{{ log_only_test }}"
-    then:
-      - action: logbook.log
-        data:
-          name: Outside lights (TEST MODE)
-          message: "{{ on_message }}"
-    else:
-      - action: light.turn_on
-        target:
-          entity_id: !input outside_lights
+  - choose:
+      # ---------------------------------------------------------------- Sunset
+      - conditions:
+          - condition: trigger
+            id: schedule_on
+        sequence:
+          # Skip if the off time has already passed today (e.g. sunset plus
+          # offset falls after an early off time in summer).
+          - condition: template
+            value_template: >-
+              {{ off_time_after_midnight or now() < today_at(schedule_off_time) }}
+          - condition: template
+            value_template: "{{ scheduled_lights | length > 0 }}"
+          - if:
+              - condition: template
+                value_template: "{{ log_only_test }}"
+            then:
+              - action: logbook.log
+                data:
+                  name: Outside lights (TEST MODE)
+                  message: >-
+                    Would turn ON {{ scheduled_lights | join(', ') }} for the
+                    sunset schedule.
+            else:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ scheduled_lights }}"
 
-  # Wait until no camera has seen a person for the full delay. A new detection
-  # during the wait sends us back around the loop, so the countdown restarts.
-  - repeat:
-      sequence:
-        - wait_template: >-
-            {{ expand(sensors) | selectattr('state', 'eq', 'on') | list | length == 0 }}
-        - wait_for_trigger:
-            - trigger: state
-              entity_id: !input person_sensors
-              to: "on"
-          timeout: !input clear_delay
-          continue_on_timeout: true
-      until:
-        - condition: template
-          value_template: >-
-            {{ expand(sensors)
-               | rejectattr('state', 'in', ['off', 'unavailable', 'unknown'])
-               | list | length == 0 }}
+      # -------------------------------------------------------------- Off time
+      - conditions:
+          - condition: trigger
+            id: schedule_off
+        sequence:
+          - condition: template
+            value_template: "{{ scheduled_lights | length > 0 }}"
+          # If someone is outside right now, wait until no camera has seen a
+          # person for the full clear delay before turning the lights off.
+          - repeat:
+              sequence:
+                - wait_template: >-
+                    {{ expand(sensors) | selectattr('state', 'eq', 'on') | list | length == 0 }}
+                - wait_for_trigger:
+                    - trigger: state
+                      entity_id: !input person_sensors
+                      to: "on"
+                  timeout: !input clear_delay
+                  continue_on_timeout: true
+              until:
+                - condition: template
+                  value_template: >-
+                    {{ expand(sensors)
+                       | rejectattr('state', 'in', ['off', 'unavailable', 'unknown'])
+                       | list | length == 0 }}
+          - if:
+              - condition: template
+                value_template: "{{ log_only_test }}"
+            then:
+              - action: logbook.log
+                data:
+                  name: Outside lights (TEST MODE)
+                  message: >-
+                    Would turn OFF {{ scheduled_lights | join(', ') }}: the
+                    sunset schedule has ended.
+            else:
+              - action: light.turn_off
+                target:
+                  entity_id: "{{ scheduled_lights }}"
 
-  # Turn off (or log that we would)
-  - if:
-      - condition: template
-        value_template: "{{ log_only_test }}"
-    then:
-      - action: logbook.log
-        data:
-          name: Outside lights (TEST MODE)
-          message: "{{ off_message }}"
-    else:
-      - action: light.turn_off
-        target:
-          entity_id: !input outside_lights
+      # -------------------------------------------------------- Person detected
+      - conditions:
+          - condition: trigger
+            id: person
+        sequence:
+          # Only take charge of lights that are off right now. Lights already
+          # on (schedule, another automation, manual) are left alone.
+          - variables:
+              controlled_lights: >-
+                {{ lights | select('is_state', 'off') | list }}
+              # When the sunset schedule will next turn the lights on. Used at
+              # the end to tell whether it started while we were waiting.
+              schedule_start_ts: >-
+                {% set ns = state_attr('sun.sun', 'next_setting') %}
+                {% if ns %}
+                  {{ (as_datetime(ns) + timedelta(minutes=sunset_offset_minutes | int(0))).timestamp() }}
+                {% else %}
+                  0
+                {% endif %}
+          - condition: template
+            value_template: "{{ controlled_lights | length > 0 }}"
+
+          # Turn on (or log that we would)
+          - if:
+              - condition: template
+                value_template: "{{ log_only_test }}"
+            then:
+              - action: logbook.log
+                data:
+                  name: Outside lights (TEST MODE)
+                  message: >-
+                    Would turn ON {{ controlled_lights | join(', ') }}. Reason:
+                    {{ trigger.to_state.name }} ({{ trigger.entity_id }})
+                    detected a person.
+                    {% if darkness_bypassed %}
+                      The darkness check was bypassed by Test mode.
+                    {% else %}
+                      Sun elevation {{ state_attr('sun.sun', 'elevation') }}° is
+                      below the {{ sun_threshold }}° darkness threshold.
+                    {% endif %}
+                    Would keep them on until no person has been detected on any
+                    camera for {{ clear_delay_text }}, then turn them OFF.
+            else:
+              - action: light.turn_on
+                target:
+                  entity_id: "{{ controlled_lights }}"
+
+          # Wait until no camera has seen a person for the full delay. A new
+          # detection during the wait sends us back around the loop, so the
+          # countdown restarts.
+          - repeat:
+              sequence:
+                - wait_template: >-
+                    {{ expand(sensors) | selectattr('state', 'eq', 'on') | list | length == 0 }}
+                - wait_for_trigger:
+                    - trigger: state
+                      entity_id: !input person_sensors
+                      to: "on"
+                  timeout: !input clear_delay
+                  continue_on_timeout: true
+              until:
+                - condition: template
+                  value_template: >-
+                    {{ expand(sensors)
+                       | rejectattr('state', 'in', ['off', 'unavailable', 'unknown'])
+                       | list | length == 0 }}
+
+          # If the sunset schedule started while we were waiting, leave its
+          # lights on; turn off only the rest of the lights we turned on.
+          - variables:
+              lights_to_turn_off: >-
+                {% set schedule_started = schedule_enabled
+                   and (schedule_start_ts | float(0)) > 0
+                   and (schedule_start_ts | float(0)) <= now().timestamp() %}
+                {% if schedule_started %}
+                  {{ controlled_lights | reject('in', scheduled_lights) | list }}
+                {% else %}
+                  {{ controlled_lights }}
+                {% endif %}
+          - condition: template
+            value_template: "{{ lights_to_turn_off | length > 0 }}"
+
+          # Turn off (or log that we would)
+          - if:
+              - condition: template
+                value_template: "{{ log_only_test }}"
+            then:
+              - action: logbook.log
+                data:
+                  name: Outside lights (TEST MODE)
+                  message: >-
+                    Would turn OFF {{ lights_to_turn_off | join(', ') }}: no
+                    person has been detected on any camera for
+                    {{ clear_delay_text }}.
+            else:
+              - action: light.turn_off
+                target:
+                  entity_id: "{{ lights_to_turn_off }}"
