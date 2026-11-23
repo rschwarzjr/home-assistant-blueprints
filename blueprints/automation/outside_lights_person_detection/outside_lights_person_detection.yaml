@@ -1,5 +1,5 @@
 blueprint:
-  name: Outside Lights on Person Detection v1.3
+  name: Outside Lights on Person Detection v1.3.1
   description: >
     Turns on outside lights when a person is detected by any of the selected
     camera sensors, then turns them off once no person has been detected on any
@@ -286,22 +286,28 @@ actions:
             value_template: "{{ scheduled_lights | length > 0 }}"
           # If someone is outside right now, wait until no camera has seen a
           # person for the full clear delay before turning the lights off.
-          - repeat:
-              sequence:
-                - wait_template: >-
-                    {{ expand(sensors) | selectattr('state', 'eq', 'on') | list | length == 0 }}
-                - wait_for_trigger:
-                    - trigger: state
-                      entity_id: !input person_sensors
-                      to: "on"
-                  timeout: !input clear_delay
-                  continue_on_timeout: true
-              until:
-                - condition: template
-                  value_template: >-
-                    {{ expand(sensors)
-                       | rejectattr('state', 'in', ['off', 'unavailable', 'unknown'])
-                       | list | length == 0 }}
+          # Otherwise turn them off right away.
+          - if:
+              - condition: template
+                value_template: >-
+                  {{ expand(sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
+            then:
+              - repeat:
+                  sequence:
+                    - wait_template: >-
+                        {{ expand(sensors) | selectattr('state', 'eq', 'on') | list | length == 0 }}
+                    - wait_for_trigger:
+                        - trigger: state
+                          entity_id: !input person_sensors
+                          to: "on"
+                      timeout: !input clear_delay
+                      continue_on_timeout: true
+                  until:
+                    - condition: template
+                      value_template: >-
+                        {{ expand(sensors)
+                           | rejectattr('state', 'in', ['off', 'unavailable', 'unknown'])
+                           | list | length == 0 }}
           - if:
               - condition: template
                 value_template: "{{ log_only_test }}"
